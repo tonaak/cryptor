@@ -252,7 +252,6 @@ public class Genkey extends JFrame {
 				}else{
 					path.setText("No path selected");
 				}
-
 			}
 		});
 		browse.setFocusPainted(false);

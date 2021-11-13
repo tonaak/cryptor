@@ -156,7 +156,7 @@ public class Genkey extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 				Home home = new Home();
 				home.setVisible(true);
-				// delay dispose
+				
 				Timer timer = new Timer( 100, new ActionListener(){
 					public void actionPerformed( ActionEvent e ){
 						dispose();
@@ -195,7 +195,7 @@ public class Genkey extends JFrame {
 		Integer[] aesKey = new Integer[]{128, 192, 256} ;
 		Integer[] desKey = new Integer[] {56};
 		Integer[] desedeKey = new Integer[] {112, 168};
-		Integer[] blowKey = new Integer[] {32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 264, 272, 280, 288, 296, 304, 312, 320, 328, 336, 344, 352, 360, 368, 376, 384, 392, 400, 408, 416, 424, 432, 440, 448};
+		Integer[] blowKey = new Integer[] {56, 64, 128, 168, 192, 256, 264, 296, 368, 432, 448};
 		Integer[] rc2Key = new Integer[] {64,128,256,512,1024};
 		Integer[] rc4Key = new Integer[] {64,128,256,512,1024};
 

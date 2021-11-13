@@ -10,6 +10,10 @@ import javax.swing.border.LineBorder;
 
 import java.awt.Color;
 import javax.swing.JButton;
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
 import java.awt.Font;
@@ -18,6 +22,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.io.File;
+import java.util.Base64;
 import java.awt.Insets;
 import java.awt.SystemColor;
 
@@ -29,10 +34,13 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.border.TitledBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import org.apache.commons.io.FileUtils;
+
 import java.awt.Component;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JTextField;
+import javax.swing.JOptionPane;
 
 public class SymText extends JFrame {
 	private static final long serialVersionUID = 1L;
@@ -40,15 +48,64 @@ public class SymText extends JFrame {
 	private JPanel contentPane;
 	private int xx, yy;
 	private JTextField filePath;
-	private String keyPath;
-
 	private JTextField modetxt;
 	private int stateMode = 1;
 	private String encMode = "Encrypt";
 	private String decMode = "Decrypt";
-	private String mode;
+	private String mode = encMode;
 
-	public static void main(String[] args) {
+	public static String encrypt(String text, String algorithm, String keyFile, String mode, String padding) throws Exception {
+		byte[] fileContent = FileUtils.readFileToByteArray(new File(keyFile));
+		byte[] originalBytes = Base64.getDecoder().decode(fileContent);
+		SecretKey key = new SecretKeySpec(originalBytes, 0, originalBytes.length, algorithm);
+
+		Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
+
+		if(mode.equalsIgnoreCase("/ECB")) {
+			cipher.init(Cipher.ENCRYPT_MODE, key);
+		} else if(mode.equalsIgnoreCase("")) {
+			cipher.init(Cipher.ENCRYPT_MODE, key);
+		} else {
+			if(algorithm.equalsIgnoreCase("AES")) {
+				cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[16]));
+			} else {
+				cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[8]));
+			}
+		}
+
+		byte[] plainText = text.getBytes("UTF-8");
+		byte[] cipherText = cipher.doFinal(plainText);
+
+		cipherText = Base64.getEncoder().encode(cipherText);
+		return new String(cipherText);
+	}
+
+	public static String decrypt(String text, String algorithm, String keyFile, String mode, String padding) throws Exception {
+		byte[] fileContent = FileUtils.readFileToByteArray(new File(keyFile));
+		byte[] originalBytes = Base64.getDecoder().decode(fileContent);
+		SecretKey key = new SecretKeySpec(originalBytes, 0, originalBytes.length, algorithm);
+
+		byte[] textByte = Base64.getDecoder().decode(text.getBytes());
+
+		Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
+		
+		if(mode.equalsIgnoreCase("/ECB")) {
+			cipher.init(Cipher.DECRYPT_MODE, key);
+		} else if(mode.equalsIgnoreCase("")) {
+			cipher.init(Cipher.DECRYPT_MODE, key);
+		} else {
+			if(algorithm.equalsIgnoreCase("AES")) {
+				cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[16]));
+			} else {
+				cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[8]));
+			}
+		}
+
+		byte[] plainText = cipher.doFinal(textByte);
+		return new String(plainText, "UTF-8");
+	}
+
+	public static void main(String[] args) throws Exception {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
@@ -65,7 +122,7 @@ public class SymText extends JFrame {
 		setUndecorated(true);
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 800, 550);
+		setBounds(100, 100, 800, 600);
 		contentPane = new JPanel();
 		contentPane.setBackground(Color.WHITE);
 		contentPane.setBorder(new LineBorder(new Color(0, 100, 0), 1, true));
@@ -126,7 +183,7 @@ public class SymText extends JFrame {
 				Sym sym = new Sym();
 				sym.setVisible(true);
 				// delay dispose
-				Timer timer = new Timer( 100, new ActionListener(){
+				Timer timer = new Timer( 30, new ActionListener(){
 					public void actionPerformed( ActionEvent e ){
 						dispose();
 					}
@@ -148,7 +205,7 @@ public class SymText extends JFrame {
 		JPanel panelMenu = new JPanel();
 		panelMenu.setBackground(Color.WHITE);
 		panelMenu.setBorder(new LineBorder(new Color(0, 100, 0)));
-		panelMenu.setBounds(0, 162, 800, 388);
+		panelMenu.setBounds(0, 162, 800, 438);
 		contentPane.add(panelMenu);
 		panelMenu.setLayout(null);
 
@@ -160,7 +217,7 @@ public class SymText extends JFrame {
 		JScrollPane sp = new JScrollPane(plainInput);
 		sp.setBackground(Color.WHITE);
 		sp.setBorder(new TitledBorder(new LineBorder(new Color(0, 100, 0)), "Plain Text", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(0, 100, 0)));
-		sp.setBounds(39, 154, 313, 173);
+		sp.setBounds(37, 210, 317, 176);
 		sp.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		panelMenu.add(sp);
 
@@ -168,7 +225,7 @@ public class SymText extends JFrame {
 		sp_1.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		sp_1.setBorder(new TitledBorder(new LineBorder(new Color(0, 100, 0)), "Cipher Text", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(0, 100, 0)));
 		sp_1.setBackground(Color.WHITE);
-		sp_1.setBounds(449, 154, 313, 173);
+		sp_1.setBounds(447, 210, 317, 176);
 		panelMenu.add(sp_1);
 
 		JTextArea cipherInput = new JTextArea();
@@ -194,6 +251,7 @@ public class SymText extends JFrame {
 		panelMenu.add(algo);
 
 		filePath = new JTextField();
+		filePath.setText("");
 		filePath.setEditable(false);
 		filePath.setColumns(10);
 		filePath.setBackground(Color.WHITE);
@@ -218,9 +276,8 @@ public class SymText extends JFrame {
 					File f = chooser.getSelectedFile();
 					String filename = f.getAbsolutePath();
 					filePath.setText(filename);
-					keyPath = filename;
 				}else{
-					filePath.setText("No path selected");
+					filePath.setText("No file selected");
 				}
 			}
 		});
@@ -243,7 +300,7 @@ public class SymText extends JFrame {
 		modetxt.setBounds(449, 34, 109, 29);
 		panelMenu.add(modetxt);
 
-		JLabel lbMode = new JLabel("Current Mode:");
+		JLabel lbMode = new JLabel("Current Action:");
 		lbMode.setForeground(new Color(0, 100, 0));
 		lbMode.setFont(new Font("Tahoma", Font.BOLD, 12));
 		lbMode.setBackground(Color.WHITE);
@@ -268,7 +325,7 @@ public class SymText extends JFrame {
 				modetxt.setText(mode);
 			}
 		});
-		
+
 		changeBtn.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseEntered(MouseEvent e) {
@@ -286,5 +343,127 @@ public class SymText extends JFrame {
 		changeBtn.setIcon(new ImageIcon(SymText.class.getResource("/image/swap.png")));
 		changeBtn.setBounds(600, 11, 52, 52);
 		panelMenu.add(changeBtn);
+
+		String[] emptyMode = new String[] {""};
+		String[] noPadding = new String[] {"NoPadding"};
+		String[] emptyPadding = new String[] {""};
+		String[] modeList = new String[] {"NONE", "ECB", "CBC", "PCBC", "CTR", "CFB", "CFB8", "CFB64", "OFB", "OFB8", "OFB64"};
+		String[] paddingList = new String[] {"PKCS5Padding", "ISO10126Padding"};
+
+		JComboBox<Object> modeSelect = new JComboBox<Object>();
+		modeSelect.setModel(new DefaultComboBoxModel<Object>(modeList));
+		modeSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
+		modeSelect.setBorder(null);
+		modeSelect.setBackground(Color.WHITE);
+		modeSelect.setBounds(39, 156, 313, 29);
+		panelMenu.add(modeSelect);
+
+		JLabel modelb = new JLabel("Mode:");
+		modelb.setForeground(new Color(0, 100, 0));
+		modelb.setFont(new Font("Tahoma", Font.BOLD, 12));
+		modelb.setBackground(Color.WHITE);
+		modelb.setBounds(39, 133, 88, 22);
+		panelMenu.add(modelb);
+
+		JComboBox<Object> paddingSelect = new JComboBox<Object>();
+		paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
+		paddingSelect.setEnabled(false);
+		paddingSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
+		paddingSelect.setBorder(null);
+		paddingSelect.setBackground(Color.WHITE);
+		paddingSelect.setBounds(449, 156, 313, 29);
+		panelMenu.add(paddingSelect);
+
+		JLabel paddinglb = new JLabel("Padding:");
+		paddinglb.setForeground(new Color(0, 100, 0));
+		paddinglb.setFont(new Font("Tahoma", Font.BOLD, 12));
+		paddinglb.setBackground(Color.WHITE);
+		paddinglb.setBounds(449, 133, 88, 22);
+		panelMenu.add(paddinglb);
+
+		algoSelect.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if(algoSelect.getSelectedItem().equals("RC4")) {
+					modeSelect.setModel(new DefaultComboBoxModel<Object>(emptyMode));
+					modeSelect.setEnabled(false);
+					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
+					paddingSelect.setEnabled(false);
+				} else {
+					modeSelect.setModel(new DefaultComboBoxModel<Object>(modeList));
+					modeSelect.setEnabled(true);
+					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
+					paddingSelect.setEnabled(false);
+				} 
+			}
+		});
+
+		modeSelect.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if(modeSelect.getSelectedItem().equals("CTR")) {
+					paddingSelect.setModel(new DefaultComboBoxModel<Object>(noPadding));
+					paddingSelect.setEnabled(true);
+				} else if (modeSelect.getSelectedItem().equals("NONE")) {
+					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
+					paddingSelect.setEnabled(false);
+				} else {
+					paddingSelect.setModel(new DefaultComboBoxModel<Object>(paddingList));
+					paddingSelect.setEnabled(true);
+				}
+			}
+		});
+
+		JButton startBtn = new JButton("");
+		startBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String algorithm = (String) algoSelect.getSelectedItem();
+				String keyFilePath = filePath.getText();
+				String modeCrypt = "/" + (String) modeSelect.getSelectedItem();
+				String padding = "/" + (String) paddingSelect.getSelectedItem();
+
+				if (modeCrypt.equalsIgnoreCase("/NONE")) {
+					modeCrypt = "";
+					padding = "";
+				}
+
+				if(keyFilePath.equalsIgnoreCase("") || keyFilePath.equalsIgnoreCase("No file selected")) {
+					JOptionPane.showMessageDialog(contentPane, "Please select a key file!");
+				} else {
+					if (mode == encMode) {
+						String text = plainInput.getText();
+						try {
+							String cipherText = encrypt(text, algorithm, keyFilePath, modeCrypt, padding);
+							cipherInput.setText(cipherText);
+						} catch (Exception e1) {
+							JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the encrypt mode");
+						}
+					} else {
+						String text = cipherInput.getText();
+						try {
+							String plainText = decrypt(text, algorithm, keyFilePath, modeCrypt, padding);
+							plainInput.setText(plainText);
+						} catch (Exception e1) {
+							JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the decrypt mode");
+						}
+					}
+				}
+			}
+		});
+		startBtn.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseEntered(MouseEvent e) {
+				startBtn.setBackground(new Color(152, 251, 152));
+			}
+			@Override
+			public void mouseExited(MouseEvent e) {
+				startBtn.setBackground(Color.WHITE);
+			}
+		});
+		startBtn.setFocusPainted(false);
+		startBtn.setIcon(new ImageIcon(SymText.class.getResource("/image/start.png")));
+		startBtn.setBorder(null);
+		startBtn.setActionCommand("");
+		startBtn.setBackground(Color.WHITE);
+		startBtn.setBounds(364, 216, 73, 52);
+		panelMenu.add(startBtn);
 	}
 }

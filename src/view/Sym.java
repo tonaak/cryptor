@@ -136,15 +136,16 @@ public class Sym extends JFrame {
 		JButton btnFile = new JButton("File");
 		btnFile.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-//				panelText.setVisible(true);
-//				// delay dispose
-//				Timer timer = new Timer( 100, new ActionListener(){
-//				  public void actionPerformed( ActionEvent e ){
-//				      panelMenu.setVisible(false);
-//				  }
-//				});
-//				timer.setRepeats(false);
-//				timer.start();
+				SymFile sym = new SymFile();
+				sym.setVisible(true);
+				// delay dispose
+				Timer timer = new Timer( 100, new ActionListener(){
+				  public void actionPerformed( ActionEvent e ){
+				      dispose();
+				  }
+				});
+				timer.setRepeats(false);
+				timer.start();
 			}
 		});
 		btnFile.addMouseListener(new MouseAdapter() {

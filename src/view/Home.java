@@ -106,6 +106,7 @@ public class Home extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 				Sym sym = new Sym();
 				sym.setVisible(true);
+				
 				// delay dispose
 				Timer timer = new Timer( 100, new ActionListener(){
 				  public void actionPerformed( ActionEvent e ){

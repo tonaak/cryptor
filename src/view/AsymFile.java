@@ -4,7 +4,6 @@ import java.awt.EventQueue;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.Timer;
 import javax.swing.border.LineBorder;
 
@@ -22,6 +21,10 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.awt.Insets;
 import java.awt.SystemColor;
@@ -29,18 +32,15 @@ import java.awt.SystemColor;
 import javax.swing.JLabel;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
-import javax.swing.JTextArea;
-import javax.swing.ScrollPaneConstants;
-import javax.swing.border.TitledBorder;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 
-import java.awt.Component;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JTextField;
 import javax.swing.JOptionPane;
 
-public class SymText extends JFrame {
+public class AsymFile extends JFrame {
 	private static final long serialVersionUID = 1L;
 
 	private JPanel contentPane;
@@ -51,63 +51,107 @@ public class SymText extends JFrame {
 	private String encMode = "Encrypt";
 	private String decMode = "Decrypt";
 	private String mode = encMode;
+	private JTextField inputPath;
+	private JTextField outPath;
 
-	public static String encrypt(String text, String algorithm, String keyFile, String mode, String padding) throws Exception {
+	DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+	LocalDateTime now = LocalDateTime.now();
+
+	public static void encrypt(String sourceFile, String destFile, String algorithm, String keyFile, String mode, String padding) throws Exception {
 		byte[] fileContent = FileUtils.readFileToByteArray(new File(keyFile));
 		byte[] originalBytes = Base64.getDecoder().decode(fileContent);
 		SecretKey key = new SecretKeySpec(originalBytes, 0, originalBytes.length, algorithm);
 
-		Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
+		File file = new File(sourceFile);
+		if(file.isFile()) {
+			Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
 
-		if(mode.equalsIgnoreCase("/ECB") || algorithm.equalsIgnoreCase("RC4")) {
-			cipher.init(Cipher.ENCRYPT_MODE, key);
-		} else if(mode.equalsIgnoreCase("")) {
-			cipher.init(Cipher.ENCRYPT_MODE, key);
-		} else {
-			if(algorithm.equalsIgnoreCase("AES")) {
-				cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[16]));
+			if(mode.equalsIgnoreCase("/ECB") || algorithm.equalsIgnoreCase("RC4")) {
+				cipher.init(Cipher.ENCRYPT_MODE, key);
+			} else if(mode.equalsIgnoreCase("")) {
+				cipher.init(Cipher.ENCRYPT_MODE, key);
 			} else {
-				cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[8]));
+				if(algorithm.equalsIgnoreCase("AES")) {
+					cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[16]));
+				} else {
+					cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[8]));
+				}
 			}
+
+			FileInputStream fis = new FileInputStream(file);
+			FileOutputStream fos = new FileOutputStream(destFile);
+			byte[] input = new byte[64];
+			int bytesRead;
+
+			while((bytesRead = fis.read(input)) != -1) {
+				byte[] output = cipher.update(input	, 0, bytesRead);
+				if(output != null)
+					fos.write(output);
+			}
+			byte[] output = cipher.doFinal();
+			if(output != null)
+				fos.write(output);
+
+			fis.close();
+			fos.flush();
+			fos.close();
+		} else {
+			sourceFile = "This is not a file";
 		}
 
-		byte[] plainText = text.getBytes("UTF-8");
-		byte[] cipherText = cipher.doFinal(plainText);
-
-		cipherText = Base64.getEncoder().encode(cipherText);
-		return new String(cipherText);
 	}
 
-	public static String decrypt(String text, String algorithm, String keyFile, String mode, String padding) throws Exception {
+	public static void decrypt(String sourceFile, String destFile, String algorithm, String keyFile, String mode, String padding) throws Exception {
 		byte[] fileContent = FileUtils.readFileToByteArray(new File(keyFile));
 		byte[] originalBytes = Base64.getDecoder().decode(fileContent);
 		SecretKey key = new SecretKeySpec(originalBytes, 0, originalBytes.length, algorithm);
 
-		byte[] textByte = Base64.getDecoder().decode(text.getBytes());
+		File file = new File(sourceFile);
+		if(file.isFile()) {
+			Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
 
-		Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
-		
-		if(mode.equalsIgnoreCase("/ECB") || algorithm.equalsIgnoreCase("RC4")) {
-			cipher.init(Cipher.DECRYPT_MODE, key);
-		} else if(mode.equalsIgnoreCase("")) {
-			cipher.init(Cipher.DECRYPT_MODE, key);
-		} else {
-			if(algorithm.equalsIgnoreCase("AES")) {
-				cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[16]));
+			if(mode.equalsIgnoreCase("/ECB") || algorithm.equalsIgnoreCase("RC4")) {
+				cipher.init(Cipher.DECRYPT_MODE, key);
+			} else if(mode.equalsIgnoreCase("")) {
+				cipher.init(Cipher.DECRYPT_MODE, key);
 			} else {
-				cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[8]));
+				if(algorithm.equalsIgnoreCase("AES")) {
+					cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[16]));
+				} else {
+					cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[8]));
+				}
 			}
+
+			FileInputStream fis = new FileInputStream(file);
+			FileOutputStream fos = new FileOutputStream(destFile);
+
+			byte[] input = new byte[64];
+			int readByte = 0;
+
+			while((readByte = fis.read(input)) != -1) {
+				byte[] output = cipher.update(input	, 0, readByte);
+				if(output != null)
+					fos.write(output);
+			}
+			byte[] output = cipher.doFinal();
+			if(output != null) {
+				fos.write(output);
+			}
+
+			fis.close();
+			fos.flush();
+			fos.close();
+		} else {
+			sourceFile = "This is not a file";
 		}
 
-		byte[] plainText = cipher.doFinal(textByte);
-		return new String(plainText, "UTF-8");
 	}
 
 	public static void main(String[] args) throws Exception {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					SymText frame = new SymText();
+					AsymFile frame = new AsymFile();
 					frame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -116,7 +160,7 @@ public class SymText extends JFrame {
 		});
 	}
 
-	public SymText() {
+	public AsymFile() {
 		setUndecorated(true);
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -169,7 +213,7 @@ public class SymText extends JFrame {
 		logo.setBounds(101, 11, 143, 140);
 		panel.add(logo);
 
-		JLabel title = new JLabel("SYMMETRIC");
+		JLabel title = new JLabel("ASYMMETRIC");
 		title.setForeground(Color.WHITE);
 		title.setFont(new Font("Arial", Font.BOLD | Font.ITALIC, 29));
 		title.setBounds(246, 39, 325, 91);
@@ -178,7 +222,7 @@ public class SymText extends JFrame {
 		JButton btnReturn = new JButton("");
 		btnReturn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				Sym sym = new Sym();
+				Asym sym = new Asym();
 				sym.setVisible(true);
 				// delay dispose
 				Timer timer = new Timer( 30, new ActionListener(){
@@ -206,32 +250,6 @@ public class SymText extends JFrame {
 		panelMenu.setBounds(0, 162, 800, 438);
 		contentPane.add(panelMenu);
 		panelMenu.setLayout(null);
-
-		JTextArea plainInput = new JTextArea();
-		plainInput.setMargin(new Insets(0, 4, 0, 4));
-		plainInput.setLineWrap(true);
-		plainInput.setFont(new Font("Tahoma", Font.PLAIN, 15));
-
-		JScrollPane sp = new JScrollPane(plainInput);
-		sp.setBackground(Color.WHITE);
-		sp.setBorder(new TitledBorder(new LineBorder(new Color(0, 100, 0)), "Plain Text", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(0, 100, 0)));
-		sp.setBounds(37, 210, 317, 176);
-		sp.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-		panelMenu.add(sp);
-
-		JScrollPane sp_1 = new JScrollPane((Component) null);
-		sp_1.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-		sp_1.setBorder(new TitledBorder(new LineBorder(new Color(0, 100, 0)), "Cipher Text", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(0, 100, 0)));
-		sp_1.setBackground(Color.WHITE);
-		sp_1.setBounds(447, 210, 317, 176);
-		panelMenu.add(sp_1);
-
-		JTextArea cipherInput = new JTextArea();
-		cipherInput.setEditable(false);
-		cipherInput.setMargin(new Insets(0, 4, 0, 4));
-		cipherInput.setLineWrap(true);
-		cipherInput.setFont(new Font("Tahoma", Font.PLAIN, 15));
-		sp_1.setViewportView(cipherInput);
 
 		JComboBox<Object> algoSelect = new JComboBox<Object>();
 		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"AES", "DES", "DESede", "Blowfish", "RC2", "RC4"}));
@@ -307,17 +325,14 @@ public class SymText extends JFrame {
 		JButton changeBtn = new JButton("");
 		changeBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				plainInput.setText("");
-				cipherInput.setText("");
+				inputPath.setText("");
+				outPath.setText("");
 				stateMode = 1 - stateMode;
 				if(stateMode == 1) {
 					mode = encMode;
-					plainInput.setEditable(true);
-					cipherInput.setEditable(false);
+
 				} else {
 					mode = decMode;
-					cipherInput.setEditable(true);
-					plainInput.setEditable(false);
 				}
 				modetxt.setText(mode);
 			}
@@ -409,38 +424,124 @@ public class SymText extends JFrame {
 			}
 		});
 
+		inputPath = new JTextField();
+		inputPath.setText("");
+		inputPath.setEditable(false);
+		inputPath.setColumns(10);
+		inputPath.setBackground(Color.WHITE);
+		inputPath.setBounds(39, 225, 613, 29);
+		panelMenu.add(inputPath);
+
+		JLabel inputLb = new JLabel("Input File:");
+		inputLb.setForeground(new Color(0, 100, 0));
+		inputLb.setFont(new Font("Tahoma", Font.BOLD, 12));
+		inputLb.setBackground(Color.WHITE);
+		inputLb.setBounds(39, 200, 88, 22);
+		panelMenu.add(inputLb);
+
+		JButton browseIn = new JButton("Browse");
+		browseIn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				JFileChooser chooser = new JFileChooser();
+				chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+				int option = chooser.showOpenDialog(null);
+				if(option == JFileChooser.APPROVE_OPTION){
+					File f = chooser.getSelectedFile();
+					String filename = f.getAbsolutePath();
+					inputPath.setText(filename);
+				}else{
+					inputPath.setText("No file selected");
+				}
+			}
+		});
+		browseIn.setForeground(Color.WHITE);
+		browseIn.setFont(new Font("Tahoma", Font.BOLD, 12));
+		browseIn.setFocusPainted(false);
+		browseIn.setBackground(new Color(0, 128, 0));
+		browseIn.setBounds(662, 224, 100, 29);
+		panelMenu.add(browseIn);
+
+		outPath = new JTextField();
+		outPath.setText("");
+		outPath.setEditable(false);
+		outPath.setColumns(10);
+		outPath.setBackground(Color.WHITE);
+		outPath.setBounds(39, 290, 613, 29);
+		panelMenu.add(outPath);
+
+		JLabel outlb = new JLabel("Output Destination:");
+		outlb.setForeground(new Color(0, 100, 0));
+		outlb.setFont(new Font("Tahoma", Font.BOLD, 12));
+		outlb.setBackground(Color.WHITE);
+		outlb.setBounds(39, 265, 147, 22);
+		panelMenu.add(outlb);
+
+		JButton browseOut = new JButton("Browse");
+		browseOut.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				JFileChooser chooser = new JFileChooser();
+				chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+				int option = chooser.showOpenDialog(null);
+				if(option == JFileChooser.APPROVE_OPTION){
+					File f = chooser.getSelectedFile();
+					String filename = f.getAbsolutePath();
+					outPath.setText(filename);
+				}else{
+					outPath.setText("No path selected");
+				}
+			}
+		});
+		browseOut.setForeground(Color.WHITE);
+		browseOut.setFont(new Font("Tahoma", Font.BOLD, 12));
+		browseOut.setFocusPainted(false);
+		browseOut.setBackground(new Color(0, 128, 0));
+		browseOut.setBounds(662, 289, 100, 29);
+		panelMenu.add(browseOut);
+
 		JButton startBtn = new JButton("");
 		startBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				String algorithm = (String) algoSelect.getSelectedItem();
-				String keyFilePath = filePath.getText();
-				String modeCrypt = "/" + (String) modeSelect.getSelectedItem();
-				String padding = "/" + (String) paddingSelect.getSelectedItem();
+				String sourceFile = inputPath.getText();
+				String destFile = outPath.getText();
 
-				if (modeCrypt.equalsIgnoreCase("/NONE")) {
-					modeCrypt = "";
-					padding = "";
-				}
-
-				if(keyFilePath.equalsIgnoreCase("") || keyFilePath.equalsIgnoreCase("No file selected")) {
-					JOptionPane.showMessageDialog(contentPane, "Please select a key file!");
+				if(sourceFile.equalsIgnoreCase("") 
+						|| sourceFile.equalsIgnoreCase("No file selected") 
+						|| destFile.equalsIgnoreCase("") 
+						|| destFile.equalsIgnoreCase("No path selected")) {
+					JOptionPane.showMessageDialog(contentPane, "Choose paths for both input and output file");
 				} else {
-					if (mode == encMode) {
-						String text = plainInput.getText();
-						try {
-							String cipherText = encrypt(text, algorithm, keyFilePath, modeCrypt, padding);
-							cipherInput.setText(cipherText);
-						} catch (Exception e1) {
-							e1.printStackTrace();
-							JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the encrypt mode");
-						}
+					String inputFileName = FilenameUtils.getBaseName(sourceFile);
+					String inputFileExtension = FilenameUtils.getExtension(sourceFile);
+					
+					String algorithm = (String) algoSelect.getSelectedItem();
+					String keyFilePath = filePath.getText();
+					String modeCrypt = "/" + (String) modeSelect.getSelectedItem();
+					String padding = "/" + (String) paddingSelect.getSelectedItem();
+
+					if (modeCrypt.equalsIgnoreCase("/NONE")) {
+						modeCrypt = "";
+						padding = "";
+					}
+
+					if(keyFilePath.equalsIgnoreCase("") || keyFilePath.equalsIgnoreCase("No file selected")) {
+						JOptionPane.showMessageDialog(contentPane, "Please select a key file!");
 					} else {
-						String text = cipherInput.getText();
-						try {
-							String plainText = decrypt(text, algorithm, keyFilePath, modeCrypt, padding);
-							plainInput.setText(plainText);
-						} catch (Exception e1) {
-							JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the decrypt mode");
+						if (mode == encMode) {
+							destFile += "\\" + inputFileName + "_encrypted_" + dtf.format(now) + "." + inputFileExtension;
+							try {
+								encrypt(sourceFile, destFile, algorithm, keyFilePath, modeCrypt, padding);
+								JOptionPane.showMessageDialog(contentPane, "Encrypted Successfully");
+							} catch (Exception e1) {
+								JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the encrypt mode");
+							}
+						} else {
+							destFile += "\\" + inputFileName + "_decrypted_" + dtf.format(now) + "." + inputFileExtension;
+							try {
+								decrypt(sourceFile, destFile, algorithm, keyFilePath, modeCrypt, padding);
+								JOptionPane.showMessageDialog(contentPane, "Decrypted Successfully");
+							} catch (Exception e1) {
+								JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the decrypt mode");
+							}
 						}
 					}
 				}
@@ -461,7 +562,7 @@ public class SymText extends JFrame {
 		startBtn.setBorder(null);
 		startBtn.setActionCommand("");
 		startBtn.setBackground(Color.WHITE);
-		startBtn.setBounds(364, 216, 73, 52);
+		startBtn.setBounds(363, 347, 81, 52);
 		panelMenu.add(startBtn);
 	}
 }

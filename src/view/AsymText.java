@@ -11,9 +11,6 @@ import javax.swing.border.LineBorder;
 import java.awt.Color;
 import javax.swing.JButton;
 import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
 import java.awt.Font;
@@ -22,6 +19,17 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.awt.Insets;
 import java.awt.SystemColor;
@@ -32,15 +40,13 @@ import java.awt.event.ActionEvent;
 import javax.swing.JTextArea;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.border.TitledBorder;
-import org.apache.commons.io.FileUtils;
-
 import java.awt.Component;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JTextField;
 import javax.swing.JOptionPane;
 
-public class SymText extends JFrame {
+public class AsymText extends JFrame {
 	private static final long serialVersionUID = 1L;
 
 	private JPanel contentPane;
@@ -51,63 +57,52 @@ public class SymText extends JFrame {
 	private String encMode = "Encrypt";
 	private String decMode = "Decrypt";
 	private String mode = encMode;
+	
+	private static Base64.Encoder encoder = Base64.getEncoder();
+	private static Base64.Decoder decoder = Base64.getDecoder();
 
-	public static String encrypt(String text, String algorithm, String keyFile, String mode, String padding) throws Exception {
-		byte[] fileContent = FileUtils.readFileToByteArray(new File(keyFile));
-		byte[] originalBytes = Base64.getDecoder().decode(fileContent);
-		SecretKey key = new SecretKeySpec(originalBytes, 0, originalBytes.length, algorithm);
-
-		Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
-
-		if(mode.equalsIgnoreCase("/ECB") || algorithm.equalsIgnoreCase("RC4")) {
-			cipher.init(Cipher.ENCRYPT_MODE, key);
-		} else if(mode.equalsIgnoreCase("")) {
-			cipher.init(Cipher.ENCRYPT_MODE, key);
-		} else {
-			if(algorithm.equalsIgnoreCase("AES")) {
-				cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[16]));
-			} else {
-				cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[8]));
-			}
-		}
-
+	public static String encrypt(String text, PublicKey publicKey) throws Exception{
+		Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+		cipher.init(Cipher.ENCRYPT_MODE, publicKey);
 		byte[] plainText = text.getBytes("UTF-8");
 		byte[] cipherText = cipher.doFinal(plainText);
-
-		cipherText = Base64.getEncoder().encode(cipherText);
+		
+		cipherText = encoder.encode(cipherText);
 		return new String(cipherText);
 	}
-
-	public static String decrypt(String text, String algorithm, String keyFile, String mode, String padding) throws Exception {
-		byte[] fileContent = FileUtils.readFileToByteArray(new File(keyFile));
-		byte[] originalBytes = Base64.getDecoder().decode(fileContent);
-		SecretKey key = new SecretKeySpec(originalBytes, 0, originalBytes.length, algorithm);
-
-		byte[] textByte = Base64.getDecoder().decode(text.getBytes());
-
-		Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
-		
-		if(mode.equalsIgnoreCase("/ECB") || algorithm.equalsIgnoreCase("RC4")) {
-			cipher.init(Cipher.DECRYPT_MODE, key);
-		} else if(mode.equalsIgnoreCase("")) {
-			cipher.init(Cipher.DECRYPT_MODE, key);
-		} else {
-			if(algorithm.equalsIgnoreCase("AES")) {
-				cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[16]));
-			} else {
-				cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[8]));
-			}
-		}
-
-		byte[] plainText = cipher.doFinal(textByte);
-		return new String(plainText, "UTF-8");
+	
+	public static String decrypt(String text, PrivateKey key) throws Exception{
+		byte[] cipherText = decoder.decode(text);
+		Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+		cipher.init(Cipher.DECRYPT_MODE, key);
+		byte[] plainText = cipher.doFinal(cipherText);
+		String result = new String(plainText, "UTF-8");
+		return result;
+	}
+	
+	public static PrivateKey readPrivateKey(String path) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+		byte[] bytes = Files.readAllBytes(Paths.get(path));
+		String privateString = new String(bytes, StandardCharsets.UTF_8);
+		bytes = decoder.decode(privateString);
+		PKCS8EncodedKeySpec ks = new PKCS8EncodedKeySpec(bytes);
+		KeyFactory kf = KeyFactory.getInstance("RSA");
+		return kf.generatePrivate(ks);
+	}
+	
+	public static PublicKey readPublicKey(String path) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+		byte[] bytes = Files.readAllBytes(Paths.get(path));
+		String publicString = new String(bytes, StandardCharsets.UTF_8);
+		bytes = decoder.decode(publicString);
+		X509EncodedKeySpec ks = new X509EncodedKeySpec(bytes);
+		KeyFactory kf = KeyFactory.getInstance("RSA");
+		return kf.generatePublic(ks);
 	}
 
 	public static void main(String[] args) throws Exception {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					SymText frame = new SymText();
+					AsymText frame = new AsymText();
 					frame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -116,7 +111,7 @@ public class SymText extends JFrame {
 		});
 	}
 
-	public SymText() {
+	public AsymText() {
 		setUndecorated(true);
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -165,11 +160,11 @@ public class SymText extends JFrame {
 		panel.add(btnExit);
 
 		JLabel logo = new JLabel("");
-		logo.setIcon(new ImageIcon(SymText.class.getResource("/image/encrypted-data.png")));
+		logo.setIcon(new ImageIcon(AsymText.class.getResource("/image/encrypted-data.png")));
 		logo.setBounds(101, 11, 143, 140);
 		panel.add(logo);
 
-		JLabel title = new JLabel("SYMMETRIC");
+		JLabel title = new JLabel("ASYMMETRIC");
 		title.setForeground(Color.WHITE);
 		title.setFont(new Font("Arial", Font.BOLD | Font.ITALIC, 29));
 		title.setBounds(246, 39, 325, 91);
@@ -178,7 +173,7 @@ public class SymText extends JFrame {
 		JButton btnReturn = new JButton("");
 		btnReturn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				Sym sym = new Sym();
+				Asym sym = new Asym();
 				sym.setVisible(true);
 				// delay dispose
 				Timer timer = new Timer( 30, new ActionListener(){
@@ -190,7 +185,7 @@ public class SymText extends JFrame {
 				timer.start();
 			}
 		});
-		btnReturn.setIcon(new ImageIcon(SymText.class.getResource("/image/return.png")));
+		btnReturn.setIcon(new ImageIcon(AsymText.class.getResource("/image/return.png")));
 		btnReturn.setMargin(new Insets(0, 0, 0, 0));
 		btnReturn.setForeground(Color.WHITE);
 		btnReturn.setFont(new Font("Tahoma", Font.BOLD, 20));
@@ -234,7 +229,7 @@ public class SymText extends JFrame {
 		sp_1.setViewportView(cipherInput);
 
 		JComboBox<Object> algoSelect = new JComboBox<Object>();
-		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"AES", "DES", "DESede", "Blowfish", "RC2", "RC4"}));
+		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"RSA"}));
 		algoSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
 		algoSelect.setBorder(null);
 		algoSelect.setBackground(Color.WHITE);
@@ -256,11 +251,11 @@ public class SymText extends JFrame {
 		filePath.setBounds(39, 93, 613, 29);
 		panelMenu.add(filePath);
 
-		JLabel keyFile = new JLabel("Key File:");
+		JLabel keyFile = new JLabel("Key File ( Public key ) :");
 		keyFile.setForeground(new Color(0, 100, 0));
 		keyFile.setFont(new Font("Tahoma", Font.BOLD, 12));
 		keyFile.setBackground(Color.WHITE);
-		keyFile.setBounds(39, 68, 88, 22);
+		keyFile.setBounds(39, 68, 164, 22);
 		panelMenu.add(keyFile);
 
 		JButton browse = new JButton("Browse");
@@ -314,10 +309,12 @@ public class SymText extends JFrame {
 					mode = encMode;
 					plainInput.setEditable(true);
 					cipherInput.setEditable(false);
+					keyFile.setText("Key File ( Public key ) :");
 				} else {
 					mode = decMode;
 					cipherInput.setEditable(true);
 					plainInput.setEditable(false);
+					keyFile.setText("Key File ( Private key ) :");
 				}
 				modetxt.setText(mode);
 			}
@@ -337,15 +334,12 @@ public class SymText extends JFrame {
 		changeBtn.setBorder(null);
 		changeBtn.setBackground(SystemColor.menu);
 		changeBtn.setMargin(new Insets(2, 0, 2, 0));
-		changeBtn.setIcon(new ImageIcon(SymText.class.getResource("/image/swap.png")));
+		changeBtn.setIcon(new ImageIcon(AsymText.class.getResource("/image/swap.png")));
 		changeBtn.setBounds(600, 11, 52, 52);
 		panelMenu.add(changeBtn);
 
-		String[] emptyMode = new String[] {""};
-		String[] noPadding = new String[] {"NoPadding"};
-		String[] emptyPadding = new String[] {""};
-		String[] modeList = new String[] {"NONE", "ECB", "CBC", "PCBC", "CTR", "CFB", "CFB8", "CFB64", "OFB", "OFB8", "OFB64"};
-		String[] paddingList = new String[] {"PKCS5Padding", "ISO10126Padding"};
+		String[] modeList = new String[] {"ECB"};
+		String[] paddingList = new String[] {"PKCS1Padding"};
 
 		JComboBox<Object> modeSelect = new JComboBox<Object>();
 		modeSelect.setModel(new DefaultComboBoxModel<Object>(modeList));
@@ -363,8 +357,7 @@ public class SymText extends JFrame {
 		panelMenu.add(modelb);
 
 		JComboBox<Object> paddingSelect = new JComboBox<Object>();
-		paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
-		paddingSelect.setEnabled(false);
+		paddingSelect.setModel(new DefaultComboBoxModel<Object>(paddingList));
 		paddingSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
 		paddingSelect.setBorder(null);
 		paddingSelect.setBackground(Color.WHITE);
@@ -380,47 +373,20 @@ public class SymText extends JFrame {
 
 		algoSelect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if(algoSelect.getSelectedItem().equals("RC4")) {
-					modeSelect.setModel(new DefaultComboBoxModel<Object>(emptyMode));
-					modeSelect.setEnabled(false);
-					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
-					paddingSelect.setEnabled(false);
-				} else {
-					modeSelect.setModel(new DefaultComboBoxModel<Object>(modeList));
-					modeSelect.setEnabled(true);
-					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
-					paddingSelect.setEnabled(false);
-				} 
+				
 			}
 		});
 
 		modeSelect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if(modeSelect.getSelectedItem().equals("CTR")) {
-					paddingSelect.setModel(new DefaultComboBoxModel<Object>(noPadding));
-					paddingSelect.setEnabled(true);
-				} else if (modeSelect.getSelectedItem().equals("NONE")) {
-					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
-					paddingSelect.setEnabled(false);
-				} else {
-					paddingSelect.setModel(new DefaultComboBoxModel<Object>(paddingList));
-					paddingSelect.setEnabled(true);
-				}
+				
 			}
 		});
 
 		JButton startBtn = new JButton("");
 		startBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				String algorithm = (String) algoSelect.getSelectedItem();
 				String keyFilePath = filePath.getText();
-				String modeCrypt = "/" + (String) modeSelect.getSelectedItem();
-				String padding = "/" + (String) paddingSelect.getSelectedItem();
-
-				if (modeCrypt.equalsIgnoreCase("/NONE")) {
-					modeCrypt = "";
-					padding = "";
-				}
 
 				if(keyFilePath.equalsIgnoreCase("") || keyFilePath.equalsIgnoreCase("No file selected")) {
 					JOptionPane.showMessageDialog(contentPane, "Please select a key file!");
@@ -428,16 +394,17 @@ public class SymText extends JFrame {
 					if (mode == encMode) {
 						String text = plainInput.getText();
 						try {
-							String cipherText = encrypt(text, algorithm, keyFilePath, modeCrypt, padding);
+							PublicKey publicKey = readPublicKey(keyFilePath);
+							String cipherText = encrypt(text, publicKey);
 							cipherInput.setText(cipherText);
 						} catch (Exception e1) {
-							e1.printStackTrace();
 							JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the encrypt mode");
 						}
 					} else {
 						String text = cipherInput.getText();
 						try {
-							String plainText = decrypt(text, algorithm, keyFilePath, modeCrypt, padding);
+							PrivateKey privateKey = readPrivateKey(keyFilePath);
+							String plainText = decrypt(text, privateKey);
 							plainInput.setText(plainText);
 						} catch (Exception e1) {
 							JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the decrypt mode");
@@ -457,7 +424,7 @@ public class SymText extends JFrame {
 			}
 		});
 		startBtn.setFocusPainted(false);
-		startBtn.setIcon(new ImageIcon(SymText.class.getResource("/image/start.png")));
+		startBtn.setIcon(new ImageIcon(AsymText.class.getResource("/image/start.png")));
 		startBtn.setBorder(null);
 		startBtn.setActionCommand("");
 		startBtn.setBackground(Color.WHITE);

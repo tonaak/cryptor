@@ -141,6 +141,21 @@ public class Home extends JFrame {
 		contentPane.add(btnSym);
 		
 		JButton btnAsymmetric = new JButton("ASYMMETRIC");
+		btnAsymmetric.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				Asym sym = new Asym();
+				sym.setVisible(true);
+				
+				// delay dispose
+				Timer timer = new Timer( 100, new ActionListener(){
+				  public void actionPerformed( ActionEvent e ){
+				      dispose();
+				  }
+				});
+				timer.setRepeats(false);
+				timer.start();
+			}
+		});
 		btnAsymmetric.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseEntered(MouseEvent e) {
@@ -225,6 +240,20 @@ public class Home extends JFrame {
 		
 		JButton btnKeypair = new JButton("GENKEY PAIR");
 		btnKeypair.setIcon(new ImageIcon(Home.class.getResource("/image/2key.png")));
+		btnKeypair.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				GenkeyPair gen = new GenkeyPair();
+				gen.setVisible(true);
+				// delay dispose
+				Timer timer = new Timer( 100, new ActionListener(){
+				  public void actionPerformed( ActionEvent e ){
+				      dispose();
+				  }
+				});
+				timer.setRepeats(false);
+				timer.start();
+			}
+		});
 		btnKeypair.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseEntered(MouseEvent e) {

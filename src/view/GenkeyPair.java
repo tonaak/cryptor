@@ -4,16 +4,10 @@ import java.awt.EventQueue;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.Timer;
 import javax.swing.border.LineBorder;
-import javax.swing.border.TitledBorder;
-
 import java.awt.Color;
 import javax.swing.JButton;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
 import javax.swing.ImageIcon;
 import java.awt.Font;
 import java.awt.Cursor;
@@ -21,8 +15,11 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -35,47 +32,36 @@ import javax.swing.JComboBox;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JFileChooser;
 import javax.swing.JTextField;
-import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 
-public class Genkey extends JFrame {
+public class GenkeyPair extends JFrame {
 	private static final long serialVersionUID = 1L;
 
 	private JPanel contentPane;
 	private int xx, yy;
 
-	private static SecretKey key;
 	private JTextField path;
 	private String keyPath;
-	private String encodedKey;
 	private JTextField successField;
+	private static Base64.Encoder encoder = Base64.getEncoder();
 
-	public SecretKey createKey(String algorithm, int keysize) throws NoSuchAlgorithmException {
-		KeyGenerator keyGenerator = KeyGenerator.getInstance(algorithm);
-		keyGenerator.init(keysize);
-		key = keyGenerator.generateKey();
-		return key;
-	}
+	public static void doGenkey(String path, int keysize) throws IOException, NoSuchAlgorithmException {
+		File des = new File(path);
+		if(!des.exists()) {
+			des.mkdirs();
+		}
+		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+		LocalDateTime now = LocalDateTime.now();
 
-	public String convertKeyToBase64String(SecretKey key) throws NoSuchAlgorithmException {
-		byte[] rawData = key.getEncoded();
-		String encodedKey = Base64.getEncoder().encodeToString(rawData);
-		return encodedKey;
-	}
+		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+		kpg.initialize(keysize);
+		KeyPair kp = kpg.generateKeyPair();
+		try (FileOutputStream out = new FileOutputStream(path + "/private_" + dtf.format(now) + ".key")) {
+			out.write(encoder.encodeToString(kp.getPrivate().getEncoded()).getBytes(StandardCharsets.UTF_8));
+		}
 
-	public void saveKeyFile(String algo, String key, String path) {
-		try {
-			DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
-			LocalDateTime now = LocalDateTime.now();
-			String keyFile = "\\" + algo + "_key_" + dtf.format(now);
-			File output = new File(path + keyFile);
-			FileWriter writer = new FileWriter(output);
-
-			writer.write(key);
-			writer.flush();
-			writer.close();
-		} catch (IOException e) {
-			e.printStackTrace();
+		try (FileOutputStream out = new FileOutputStream(path + "/public_" + dtf.format(now) + ".pub")) {
+			out.write(encoder.encodeToString(kp.getPublic().getEncoded()).getBytes(StandardCharsets.UTF_8));
 		}
 	}
 
@@ -83,7 +69,7 @@ public class Genkey extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					Genkey frame = new Genkey();
+					GenkeyPair frame = new GenkeyPair();
 					frame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -92,7 +78,7 @@ public class Genkey extends JFrame {
 		});
 	}
 
-	public Genkey() {
+	public GenkeyPair() {
 		setUndecorated(true);
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -141,14 +127,14 @@ public class Genkey extends JFrame {
 		panel.add(btnExit);
 
 		JLabel logo = new JLabel("");
-		logo.setIcon(new ImageIcon(Genkey.class.getResource("/image/encrypted-data.png")));
+		logo.setIcon(new ImageIcon(GenkeyPair.class.getResource("/image/encrypted-data.png")));
 		logo.setBounds(101, 11, 143, 140);
 		panel.add(logo);
 
-		JLabel title = new JLabel("KEY GENERATOR");
+		JLabel title = new JLabel("KEY PAIR GENERATOR");
 		title.setForeground(Color.WHITE);
 		title.setFont(new Font("Arial", Font.BOLD | Font.ITALIC, 29));
-		title.setBounds(246, 39, 325, 91);
+		title.setBounds(246, 39, 387, 91);
 		panel.add(title);
 
 		JButton btnReturn = new JButton("");
@@ -156,7 +142,7 @@ public class Genkey extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 				Home home = new Home();
 				home.setVisible(true);
-				
+
 				Timer timer = new Timer( 100, new ActionListener(){
 					public void actionPerformed( ActionEvent e ){
 						dispose();
@@ -166,7 +152,7 @@ public class Genkey extends JFrame {
 				timer.start();
 			}
 		});
-		btnReturn.setIcon(new ImageIcon(Genkey.class.getResource("/image/return.png")));
+		btnReturn.setIcon(new ImageIcon(GenkeyPair.class.getResource("/image/return.png")));
 		btnReturn.setMargin(new Insets(0, 0, 0, 0));
 		btnReturn.setForeground(Color.WHITE);
 		btnReturn.setFont(new Font("Tahoma", Font.BOLD, 20));
@@ -185,19 +171,14 @@ public class Genkey extends JFrame {
 		panelMenu.setLayout(null);
 
 		JComboBox<Object> algoSelect = new JComboBox<Object>();
-		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"AES", "DES", "DESede", "Blowfish", "RC2", "RC4"}));
+		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"RSA"}));
 		algoSelect.setBackground(Color.WHITE);
 		algoSelect.setBorder(null);
 		algoSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
 		algoSelect.setBounds(54, 44, 264, 29);
 		panelMenu.add(algoSelect);
 
-		Integer[] aesKey = new Integer[]{128, 192, 256} ;
-		Integer[] desKey = new Integer[] {56};
-		Integer[] desedeKey = new Integer[] {112, 168};
-		Integer[] blowKey = new Integer[] {56, 64, 128, 168, 192, 256, 264, 296, 368, 432, 448};
-		Integer[] rc2Key = new Integer[] {64,128,256,512,1024};
-		Integer[] rc4Key = new Integer[] {64,128,256,512,1024};
+		Integer[] rsaKey = new Integer[]{1024, 2048, 4096} ;
 
 		JLabel algo = new JLabel("Algorithms:");
 		algo.setForeground(new Color(0, 100, 0));
@@ -208,7 +189,7 @@ public class Genkey extends JFrame {
 		panelMenu.add(algo);
 
 		JComboBox<Integer> keySelect = new JComboBox<>();
-		keySelect.setModel(new DefaultComboBoxModel<Integer>(aesKey));
+		keySelect.setModel(new DefaultComboBoxModel<Integer>(rsaKey));
 		keySelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
 		keySelect.setBorder(null);
 		keySelect.setBackground(Color.WHITE);
@@ -227,14 +208,14 @@ public class Genkey extends JFrame {
 		destination.setForeground(new Color(0, 100, 0));
 		destination.setFont(new Font("Tahoma", Font.BOLD, 12));
 		destination.setBackground(Color.WHITE);
-		destination.setBounds(54, 78, 88, 22);
+		destination.setBounds(54, 120, 88, 22);
 		panelMenu.add(destination);
 
 		path = new JTextField();
 		path.setBackground(Color.WHITE);
 		path.setEditable(false);
 		destination.setLabelFor(path);
-		path.setBounds(54, 103, 467, 29);
+		path.setBounds(54, 145, 467, 29);
 		panelMenu.add(path);
 		path.setColumns(10);
 
@@ -259,58 +240,37 @@ public class Genkey extends JFrame {
 		browse.setBackground(new Color(0, 128, 0));
 		browse.setForeground(Color.WHITE);
 		browse.setFont(new Font("Tahoma", Font.BOLD, 12));
-		browse.setBounds(530, 103, 88, 29);
+		browse.setBounds(530, 145, 88, 29);
 		panelMenu.add(browse);
 
 		algoSelect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if(algoSelect.getSelectedItem().equals("AES")) {
-					keySelect.setModel(new DefaultComboBoxModel<Integer>(aesKey));
-				} else if(algoSelect.getSelectedItem().equals("DES")) {
-					keySelect.setModel(new DefaultComboBoxModel<Integer>(desKey));
-				} else if(algoSelect.getSelectedItem().equals("DESede")) {
-					keySelect.setModel(new DefaultComboBoxModel<Integer>(desedeKey));
-				} else if(algoSelect.getSelectedItem().equals("Blowfish")) {
-					keySelect.setModel(new DefaultComboBoxModel<Integer>(blowKey));
-				} else if(algoSelect.getSelectedItem().equals("RC2")) {
-					keySelect.setModel(new DefaultComboBoxModel<Integer>(rc2Key));
-				} else if(algoSelect.getSelectedItem().equals("RC4")) {
-					keySelect.setModel(new DefaultComboBoxModel<Integer>(rc4Key));
-				}
+				keySelect.setModel(new DefaultComboBoxModel<Integer>(rsaKey));
 			}
 		});
-
-		JTextArea keyField = new JTextArea();
-		keyField.setEditable(false);
-		keyField.setMargin(new Insets(0, 4, 0, 4));
-		keyField.setLineWrap(true);
-		keyField.setFont(new Font("Tahoma", Font.PLAIN, 15));
-
-		JScrollPane sp = new JScrollPane(keyField);
-		sp.setBackground(Color.WHITE);
-		sp.setBorder(new TitledBorder(new LineBorder(new Color(0, 100, 0)), "Key", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(0, 100, 0)));
-		sp.setBounds(51, 145, 569, 77);
-		sp.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-		panelMenu.add(sp);
 
 		JButton genBtn = new JButton("GENERATE");
 		genBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				String algorithm = (String) algoSelect.getSelectedItem();
 				int keysize = (int) keySelect.getSelectedItem();
 				if (keyPath == null) {
 					successField.setText("Please choose a destination for the key file!");
 				} else {
-					try {
-						createKey(algorithm, keysize);
-						encodedKey = convertKeyToBase64String(key);
-						saveKeyFile(algorithm, encodedKey, keyPath);
-
-						successField.setText("Generate key successfully!");
-						keyField.setText(encodedKey);
-					} catch (NoSuchAlgorithmException e1) {
-						e1.printStackTrace();
-					}
+					successField.setText("Processing...");
+					Timer timer = new Timer( 1000, new ActionListener(){
+						public void actionPerformed( ActionEvent e ){
+							try {				
+								doGenkey(keyPath, keysize);
+								successField.setText("Generated key successfully!");
+							} catch (NoSuchAlgorithmException e1) {
+								e1.printStackTrace();
+							} catch (IOException e1) {
+								e1.printStackTrace();
+							}
+						}
+					});
+					timer.setRepeats(false);
+					timer.start();
 				}
 
 			}

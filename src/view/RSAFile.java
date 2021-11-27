@@ -22,6 +22,8 @@ import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
 import javax.crypto.BadPaddingException;
@@ -50,20 +52,22 @@ public class RSAFile {
 		out.close();
 	}
 	
-	public static void doGenkey(String path) throws IOException, NoSuchAlgorithmException {
+	public static void doGenkey(String path, int keysize) throws IOException, NoSuchAlgorithmException {
 		File des = new File(path);
 		if(!des.exists()) {
 			des.mkdirs();
 		}
+		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+		LocalDateTime now = LocalDateTime.now();
 		
 		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-		kpg.initialize(2048);
+		kpg.initialize(keysize);
 		KeyPair kp = kpg.generateKeyPair();
-		try (FileOutputStream out = new FileOutputStream(path + "/private.key")) {
+		try (FileOutputStream out = new FileOutputStream(path + "/private_" + dtf.format(now) + ".key")) {
 			out.write(encoder.encodeToString(kp.getPrivate().getEncoded()).getBytes(StandardCharsets.UTF_8));
 		}
 		
-		try (FileOutputStream out = new FileOutputStream(path + "/public.pub")) {
+		try (FileOutputStream out = new FileOutputStream(path + "/public_" + dtf.format(now) + ".pub")) {
 			out.write(encoder.encodeToString(kp.getPublic().getEncoded()).getBytes(StandardCharsets.UTF_8));
 		}
 	}

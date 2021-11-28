@@ -90,7 +90,7 @@ public class RSAFile {
 		return kf.generatePublic(ks);
 	}
 	
-	public static void doEncryptRSAWithAES(PrivateKey pvt, String inputFile, String outputFile) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
+	public static void doEncryptRSAWithAES(PublicKey pub, String inputFile, String outputFile) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
 		KeyGenerator kgen = KeyGenerator.getInstance("AES");
 		kgen.init(128);
 		SecretKey skey = kgen.generateKey();
@@ -102,7 +102,7 @@ public class RSAFile {
 		try(FileOutputStream out = new FileOutputStream(outputFile)) {
 			{
 				Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-				cipher.init(Cipher.ENCRYPT_MODE, pvt);
+				cipher.init(Cipher.ENCRYPT_MODE, pub);
 				byte[] b = cipher.doFinal(skey.getEncoded());
 				out.write(b);
 				System.err.println("AES key length " + b.length);
@@ -118,12 +118,12 @@ public class RSAFile {
 		}
 	}
 	
-	public static void doDecryptRSAWithAES(PublicKey pub, String inputFile, String outputFile) throws FileNotFoundException, IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
+	public static void doDecryptRSAWithAES(PrivateKey pvt, String inputFile, String outputFile) throws FileNotFoundException, IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
 		try(FileInputStream in = new FileInputStream(inputFile)) {
 			SecretKey skey = null;
 			{
 				Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-				cipher.init(Cipher.DECRYPT_MODE, pub);
+				cipher.init(Cipher.DECRYPT_MODE, pvt);
 				byte[] b = new byte[256];
 				in.read(b);
 				byte[] keyb = cipher.doFinal(b);

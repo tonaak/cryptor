@@ -9,7 +9,11 @@ import javax.swing.border.LineBorder;
 
 import java.awt.Color;
 import javax.swing.JButton;
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -22,7 +26,24 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -32,7 +53,6 @@ import java.awt.SystemColor;
 import javax.swing.JLabel;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 
 import javax.swing.JComboBox;
@@ -57,94 +77,87 @@ public class AsymFile extends JFrame {
 	DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 	LocalDateTime now = LocalDateTime.now();
 
-	public static void encrypt(String sourceFile, String destFile, String algorithm, String keyFile, String mode, String padding) throws Exception {
-		byte[] fileContent = FileUtils.readFileToByteArray(new File(keyFile));
-		byte[] originalBytes = Base64.getDecoder().decode(fileContent);
-		SecretKey key = new SecretKeySpec(originalBytes, 0, originalBytes.length, algorithm);
+	private static Base64.Decoder decoder = Base64.getDecoder();
+	static SecureRandom srandom = new SecureRandom();
 
-		File file = new File(sourceFile);
-		if(file.isFile()) {
-			Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
-
-			if(mode.equalsIgnoreCase("/ECB") || algorithm.equalsIgnoreCase("RC4")) {
-				cipher.init(Cipher.ENCRYPT_MODE, key);
-			} else if(mode.equalsIgnoreCase("")) {
-				cipher.init(Cipher.ENCRYPT_MODE, key);
-			} else {
-				if(algorithm.equalsIgnoreCase("AES")) {
-					cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[16]));
-				} else {
-					cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[8]));
-				}
-			}
-
-			FileInputStream fis = new FileInputStream(file);
-			FileOutputStream fos = new FileOutputStream(destFile);
-			byte[] input = new byte[64];
-			int bytesRead;
-
-			while((bytesRead = fis.read(input)) != -1) {
-				byte[] output = cipher.update(input	, 0, bytesRead);
-				if(output != null)
-					fos.write(output);
-			}
-			byte[] output = cipher.doFinal();
-			if(output != null)
-				fos.write(output);
-
-			fis.close();
-			fos.flush();
-			fos.close();
-		} else {
-			sourceFile = "This is not a file";
-		}
-
+	public static PrivateKey readPrivateKey(String path) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+		byte[] bytes = Files.readAllBytes(Paths.get(path));
+		String privateString = new String(bytes, StandardCharsets.UTF_8);
+		bytes = decoder.decode(privateString);
+		PKCS8EncodedKeySpec ks = new PKCS8EncodedKeySpec(bytes);
+		KeyFactory kf = KeyFactory.getInstance("RSA");
+		return kf.generatePrivate(ks);
 	}
 
-	public static void decrypt(String sourceFile, String destFile, String algorithm, String keyFile, String mode, String padding) throws Exception {
-		byte[] fileContent = FileUtils.readFileToByteArray(new File(keyFile));
-		byte[] originalBytes = Base64.getDecoder().decode(fileContent);
-		SecretKey key = new SecretKeySpec(originalBytes, 0, originalBytes.length, algorithm);
+	public static PublicKey readPublicKey(String path) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+		byte[] bytes = Files.readAllBytes(Paths.get(path));
+		String publicString = new String(bytes, StandardCharsets.UTF_8);
+		bytes = decoder.decode(publicString);
+		X509EncodedKeySpec ks = new X509EncodedKeySpec(bytes);
+		KeyFactory kf = KeyFactory.getInstance("RSA");
+		return kf.generatePublic(ks);
+	}
 
-		File file = new File(sourceFile);
-		if(file.isFile()) {
-			Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
-
-			if(mode.equalsIgnoreCase("/ECB") || algorithm.equalsIgnoreCase("RC4")) {
-				cipher.init(Cipher.DECRYPT_MODE, key);
-			} else if(mode.equalsIgnoreCase("")) {
-				cipher.init(Cipher.DECRYPT_MODE, key);
-			} else {
-				if(algorithm.equalsIgnoreCase("AES")) {
-					cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[16]));
-				} else {
-					cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[8]));
-				}
-			}
-
-			FileInputStream fis = new FileInputStream(file);
-			FileOutputStream fos = new FileOutputStream(destFile);
-
-			byte[] input = new byte[64];
-			int readByte = 0;
-
-			while((readByte = fis.read(input)) != -1) {
-				byte[] output = cipher.update(input	, 0, readByte);
-				if(output != null)
-					fos.write(output);
-			}
-			byte[] output = cipher.doFinal();
-			if(output != null) {
-				fos.write(output);
-			}
-
-			fis.close();
-			fos.flush();
-			fos.close();
-		} else {
-			sourceFile = "This is not a file";
+	private static void processFile(Cipher ci, InputStream in, OutputStream out) throws IOException, IllegalBlockSizeException, BadPaddingException {
+		byte[] ibuf = new byte[1024];
+		int len;
+		while((len = in.read(ibuf)) != -1) {
+			byte[] obuf = ci.update(ibuf, 0, len);
+			if(obuf != null) out.write(obuf);
 		}
+		byte[] obuf = ci.doFinal();
+		if(obuf != null) out.write(obuf);
+		out.close();
+	}
 
+	public static void doEncryptRSAWithAES(PublicKey pub, String inputFile, String outputFile) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
+		KeyGenerator kgen = KeyGenerator.getInstance("AES");
+		kgen.init(128);
+		SecretKey skey = kgen.generateKey();
+
+		byte[] iv = new byte[128/8];
+		srandom.nextBytes(iv);
+		IvParameterSpec ivspec = new IvParameterSpec(iv);
+
+		try(FileOutputStream out = new FileOutputStream(outputFile)) {
+			{
+				Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+				cipher.init(Cipher.ENCRYPT_MODE, pub);
+				byte[] b = cipher.doFinal(skey.getEncoded());
+				out.write(b);
+			}
+			out.write(iv);
+
+			Cipher ci = Cipher.getInstance("AES/CBC/PKCS5Padding");
+			ci.init(Cipher.ENCRYPT_MODE, skey, ivspec);
+			try(FileInputStream in = new FileInputStream(inputFile)){
+				processFile(ci, in, out);
+			}
+		}
+	}
+
+	public static void doDecryptRSAWithAES(PrivateKey pvt, String inputFile, String outputFile, int keyBuffer) throws FileNotFoundException, IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
+		try(FileInputStream in = new FileInputStream(inputFile)) {
+			SecretKey skey = null;
+			{
+				Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+				cipher.init(Cipher.DECRYPT_MODE, pvt);
+				byte[] b = new byte[keyBuffer];
+				in.read(b);
+				byte[] keyb = cipher.doFinal(b);
+				skey = new SecretKeySpec(keyb, "AES");
+			}
+			byte[] iv = new byte[128/8];
+			in.read(iv);
+			IvParameterSpec ivspec = new IvParameterSpec(iv);
+
+			Cipher ci = Cipher.getInstance("AES/CBC/PKCS5Padding");
+			ci.init(Cipher.DECRYPT_MODE, skey, ivspec);
+
+			try(FileOutputStream out = new FileOutputStream(outputFile)){
+				processFile(ci, in, out);
+			}
+		}
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -252,7 +265,7 @@ public class AsymFile extends JFrame {
 		panelMenu.setLayout(null);
 
 		JComboBox<Object> algoSelect = new JComboBox<Object>();
-		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"AES", "DES", "DESede", "Blowfish", "RC2", "RC4"}));
+		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"RSA"}));
 		algoSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
 		algoSelect.setBorder(null);
 		algoSelect.setBackground(Color.WHITE);
@@ -274,11 +287,11 @@ public class AsymFile extends JFrame {
 		filePath.setBounds(39, 93, 613, 29);
 		panelMenu.add(filePath);
 
-		JLabel keyFile = new JLabel("Key File:");
+		JLabel keyFile = new JLabel("Key File (Public key) :");
 		keyFile.setForeground(new Color(0, 100, 0));
 		keyFile.setFont(new Font("Tahoma", Font.BOLD, 12));
 		keyFile.setBackground(Color.WHITE);
-		keyFile.setBounds(39, 68, 88, 22);
+		keyFile.setBounds(39, 68, 147, 22);
 		panelMenu.add(keyFile);
 
 		JButton browse = new JButton("Browse");
@@ -330,9 +343,10 @@ public class AsymFile extends JFrame {
 				stateMode = 1 - stateMode;
 				if(stateMode == 1) {
 					mode = encMode;
-
+					keyFile.setText("Key File (Public key) :");
 				} else {
 					mode = decMode;
+					keyFile.setText("Key File (Private key) :");
 				}
 				modetxt.setText(mode);
 			}
@@ -356,11 +370,8 @@ public class AsymFile extends JFrame {
 		changeBtn.setBounds(600, 11, 52, 52);
 		panelMenu.add(changeBtn);
 
-		String[] emptyMode = new String[] {""};
-		String[] noPadding = new String[] {"NoPadding"};
-		String[] emptyPadding = new String[] {""};
-		String[] modeList = new String[] {"NONE", "ECB", "CBC", "PCBC", "CTR", "CFB", "CFB8", "CFB64", "OFB", "OFB8", "OFB64"};
-		String[] paddingList = new String[] {"PKCS5Padding", "ISO10126Padding"};
+		String[] modeList = new String[] {"ECB"};
+		String[] paddingList = new String[] {"PKCS1Padding"};
 
 		JComboBox<Object> modeSelect = new JComboBox<Object>();
 		modeSelect.setModel(new DefaultComboBoxModel<Object>(modeList));
@@ -378,8 +389,7 @@ public class AsymFile extends JFrame {
 		panelMenu.add(modelb);
 
 		JComboBox<Object> paddingSelect = new JComboBox<Object>();
-		paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
-		paddingSelect.setEnabled(false);
+		paddingSelect.setModel(new DefaultComboBoxModel<Object>(paddingList));
 		paddingSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
 		paddingSelect.setBorder(null);
 		paddingSelect.setBackground(Color.WHITE);
@@ -395,32 +405,13 @@ public class AsymFile extends JFrame {
 
 		algoSelect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if(algoSelect.getSelectedItem().equals("RC4")) {
-					modeSelect.setModel(new DefaultComboBoxModel<Object>(emptyMode));
-					modeSelect.setEnabled(false);
-					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
-					paddingSelect.setEnabled(false);
-				} else {
-					modeSelect.setModel(new DefaultComboBoxModel<Object>(modeList));
-					modeSelect.setEnabled(true);
-					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
-					paddingSelect.setEnabled(false);
-				} 
+
 			}
 		});
 
 		modeSelect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if(modeSelect.getSelectedItem().equals("CTR")) {
-					paddingSelect.setModel(new DefaultComboBoxModel<Object>(noPadding));
-					paddingSelect.setEnabled(true);
-				} else if (modeSelect.getSelectedItem().equals("NONE")) {
-					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
-					paddingSelect.setEnabled(false);
-				} else {
-					paddingSelect.setModel(new DefaultComboBoxModel<Object>(paddingList));
-					paddingSelect.setEnabled(true);
-				}
+
 			}
 		});
 
@@ -451,6 +442,7 @@ public class AsymFile extends JFrame {
 					inputPath.setText(filename);
 				}else{
 					inputPath.setText("No file selected");
+					inputPath.setText("");
 				}
 			}
 		});
@@ -512,16 +504,7 @@ public class AsymFile extends JFrame {
 				} else {
 					String inputFileName = FilenameUtils.getBaseName(sourceFile);
 					String inputFileExtension = FilenameUtils.getExtension(sourceFile);
-					
-					String algorithm = (String) algoSelect.getSelectedItem();
 					String keyFilePath = filePath.getText();
-					String modeCrypt = "/" + (String) modeSelect.getSelectedItem();
-					String padding = "/" + (String) paddingSelect.getSelectedItem();
-
-					if (modeCrypt.equalsIgnoreCase("/NONE")) {
-						modeCrypt = "";
-						padding = "";
-					}
 
 					if(keyFilePath.equalsIgnoreCase("") || keyFilePath.equalsIgnoreCase("No file selected")) {
 						JOptionPane.showMessageDialog(contentPane, "Please select a key file!");
@@ -529,15 +512,25 @@ public class AsymFile extends JFrame {
 						if (mode == encMode) {
 							destFile += "\\" + inputFileName + "_encrypted_" + dtf.format(now) + "." + inputFileExtension;
 							try {
-								encrypt(sourceFile, destFile, algorithm, keyFilePath, modeCrypt, padding);
+								PublicKey pub = readPublicKey(keyFilePath);
+								doEncryptRSAWithAES(pub, sourceFile, destFile);
+								
 								JOptionPane.showMessageDialog(contentPane, "Encrypted Successfully");
 							} catch (Exception e1) {
 								JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the encrypt mode");
 							}
 						} else {
-							destFile += "\\" + inputFileName + "_decrypted_" + dtf.format(now) + "." + inputFileExtension;
+							destFile += "\\decrypted_from_" + inputFileName + "." + inputFileExtension;
 							try {
-								decrypt(sourceFile, destFile, algorithm, keyFilePath, modeCrypt, padding);
+								PrivateKey pvt = readPrivateKey(keyFilePath);
+								int pvtLength = pvt.getEncoded().length;
+								int keyBuffer = 0;
+								if(pvtLength == 634) keyBuffer = 128;
+								if(pvtLength == 1219) keyBuffer = 256;
+								if(pvtLength == 2376) keyBuffer = 512;
+								
+								doDecryptRSAWithAES(pvt, sourceFile, destFile, keyBuffer);
+								
 								JOptionPane.showMessageDialog(contentPane, "Decrypted Successfully");
 							} catch (Exception e1) {
 								JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the decrypt mode");

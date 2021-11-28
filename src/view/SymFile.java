@@ -535,7 +535,7 @@ public class SymFile extends JFrame {
 								JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the encrypt mode");
 							}
 						} else {
-							destFile += "\\" + inputFileName + "_decrypted_" + dtf.format(now) + "." + inputFileExtension;
+							destFile += "\\decrypted_from_" + inputFileName + "." + inputFileExtension;
 							try {
 								decrypt(sourceFile, destFile, algorithm, keyFilePath, modeCrypt, padding);
 								JOptionPane.showMessageDialog(contentPane, "Decrypted Successfully");

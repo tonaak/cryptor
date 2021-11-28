@@ -178,10 +178,10 @@ public class Home extends JFrame {
 		btnAsymmetric.setBounds(271, 187, 130, 130);
 		contentPane.add(btnAsymmetric);
 		
-		JButton btnPbe = new JButton("PBE");
+		JButton btnPbe = new JButton("HASH");
 		btnPbe.setVerticalTextPosition(SwingConstants.BOTTOM);
 		btnPbe.setHorizontalTextPosition(SwingConstants.CENTER);
-		btnPbe.setIcon(new ImageIcon(Home.class.getResource("/image/password.png")));
+		btnPbe.setIcon(new ImageIcon(Home.class.getResource("/image/Key-Hash-64.png")));
 		btnPbe.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseEntered(MouseEvent e) {

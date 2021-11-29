@@ -11,6 +11,8 @@ import javax.swing.border.LineBorder;
 import javax.swing.border.TitledBorder;
 import javax.xml.bind.DatatypeConverter;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
 import java.awt.Color;
 import javax.swing.JButton;
 import javax.swing.ImageIcon;
@@ -26,8 +28,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.Security;
 import java.awt.Insets;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import javax.swing.JComboBox;
@@ -35,6 +40,8 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.JFileChooser;
 import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
+import java.awt.SystemColor;
+import java.awt.Component;
 
 public class Hash extends JFrame {
 	private static final long serialVersionUID = 1L;
@@ -43,6 +50,11 @@ public class Hash extends JFrame {
 	private int xx, yy;
 
 	private JTextField path;
+	private JTextField txtText;
+	private int stateMode = 1;
+	private String fileMode = "File";
+	private String textMode = "Text";
+	private String mode = textMode;
 
 	public String checksum(String input, String algorithm) throws NoSuchAlgorithmException {
 		MessageDigest md = MessageDigest.getInstance(algorithm);
@@ -60,6 +72,7 @@ public class Hash extends JFrame {
 	}
 
 	public static void main(String[] args) {
+		Security.addProvider(new BouncyCastleProvider());
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
@@ -163,9 +176,23 @@ public class Hash extends JFrame {
 		panelMenu.setBounds(0, 162, 679, 361);
 		contentPane.add(panelMenu);
 		panelMenu.setLayout(null);
+		
+		JScrollPane sp_1 = new JScrollPane((Component) null);
+		sp_1.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+		sp_1.setBorder(new TitledBorder(new LineBorder(new Color(0, 100, 0)), "Input Text", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(0, 100, 0)));
+		sp_1.setBackground(Color.WHITE);
+		sp_1.setBounds(52, 84, 567, 93);
+		panelMenu.add(sp_1);
+		
+		JTextArea textInput = new JTextArea();
+		textInput.setMargin(new Insets(0, 4, 0, 4));
+		textInput.setLineWrap(true);
+		textInput.setFont(new Font("Tahoma", Font.PLAIN, 15));
+		sp_1.setViewportView(textInput);
 
 		JComboBox<Object> algoSelect = new JComboBox<Object>();
-		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"MD5", "SHA-1", "SHA-224", "SHA-256", "SHA-384", "SHA-512/224", "SHA-512/256"}));
+		algoSelect.setMaximumRowCount(12);
+		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"MD5", "MD2", "MD4", "SHA-1", "SHA-224", "SHA-256", "SHA-384", "SHA-512", "SHA-512/224", "SHA-512/256", "SHA3-224", "SHA3-256", "SHA3-384", "SHA3-512", "RIPEMD128", "RIPEMD160", "RIPEMD256", "RIPEMD320", "GOST3411", "TIGER", "WHIRLPOOL"}));
 		algoSelect.setBackground(Color.WHITE);
 		algoSelect.setBorder(null);
 		algoSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
@@ -181,6 +208,7 @@ public class Hash extends JFrame {
 		panelMenu.add(algo);
 
 		JLabel inputFilelb = new JLabel("Input File:");
+		inputFilelb.setVisible(false);
 		inputFilelb.setForeground(new Color(0, 100, 0));
 		inputFilelb.setFont(new Font("Tahoma", Font.BOLD, 12));
 		inputFilelb.setBackground(Color.WHITE);
@@ -188,6 +216,7 @@ public class Hash extends JFrame {
 		panelMenu.add(inputFilelb);
 
 		path = new JTextField();
+		path.setVisible(false);
 		path.setBackground(Color.WHITE);
 		path.setEditable(false);
 		inputFilelb.setLabelFor(path);
@@ -196,6 +225,7 @@ public class Hash extends JFrame {
 		path.setColumns(10);
 
 		JButton browse = new JButton("Browse");
+		browse.setVisible(false);
 		browse.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				JFileChooser chooser = new JFileChooser();
@@ -206,7 +236,7 @@ public class Hash extends JFrame {
 					String filename = f.getAbsolutePath();
 					path.setText(filename);
 				}else{
-					path.setText("No path selected");
+					path.setText("No file selected");
 				}
 			}
 		});
@@ -226,7 +256,7 @@ public class Hash extends JFrame {
 
 		JScrollPane sp = new JScrollPane(result);
 		sp.setBackground(Color.WHITE);
-		sp.setBorder(new TitledBorder(new LineBorder(new Color(0, 100, 0)), "Result", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(0, 100, 0)));
+		sp.setBorder(new TitledBorder(new LineBorder(new Color(0, 100, 0)), "Hash Result", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(0, 100, 0)));
 		sp.setBounds(52, 188, 567, 91);
 		sp.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		panelMenu.add(sp);
@@ -240,14 +270,29 @@ public class Hash extends JFrame {
 		hashBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				String algorithm = (String) algoSelect.getSelectedItem();
-				String file = path.getText();
-
-				try {
-					result.setText(hash(file, algorithm));
-				} catch (NoSuchAlgorithmException | IOException e1) {
-					e1.printStackTrace();
+				
+				if(stateMode == 1) {
+					String input = textInput.getText();
+					if(input == null || input == "")
+						JOptionPane.showMessageDialog(contentPane, "Nothing to hash");
+					else
+						try {
+							result.setText(checksum(input, algorithm));
+						} catch (NoSuchAlgorithmException e1) {
+							e1.printStackTrace();
+							JOptionPane.showMessageDialog(contentPane, "Process failed. Please try again later");
+						}
+				} else {
+					String file = path.getText();
+					if(file == "" || file == null || file.equalsIgnoreCase("No file selected"))
+						JOptionPane.showMessageDialog(contentPane, "Nothing to hash");
+					else
+						try {
+							result.setText(hash(file, algorithm));
+						} catch (NoSuchAlgorithmException | IOException e1) {
+							JOptionPane.showMessageDialog(contentPane, "Process failed. Please try again later");
+						}
 				}
-
 			}
 		});
 		hashBtn.setFocusPainted(false);
@@ -256,6 +301,56 @@ public class Hash extends JFrame {
 		hashBtn.setBackground(new Color(0, 128, 0));
 		hashBtn.setBounds(279, 297, 115, 39);
 		panelMenu.add(hashBtn);
+		
+		txtText = new JTextField();
+		txtText.setText("Text");
+		txtText.setMargin(new Insets(2, 5, 2, 2));
+		txtText.setForeground(new Color(128, 0, 0));
+		txtText.setFont(new Font("Tahoma", Font.BOLD | Font.ITALIC, 21));
+		txtText.setEditable(false);
+		txtText.setColumns(10);
+		txtText.setBorder(null);
+		txtText.setBackground(Color.WHITE);
+		txtText.setBounds(415, 44, 109, 29);
+		panelMenu.add(txtText);
+		
+		JLabel lblChangeMode = new JLabel("Change mode:");
+		lblChangeMode.setForeground(new Color(0, 100, 0));
+		lblChangeMode.setFont(new Font("Tahoma", Font.BOLD, 12));
+		lblChangeMode.setBackground(Color.WHITE);
+		lblChangeMode.setBounds(415, 19, 100, 22);
+		panelMenu.add(lblChangeMode);
+		
+		JButton changeBtn = new JButton("");
+		changeBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				textInput.setText("");
+				result.setText("");
+				path.setText("");
+				stateMode = 1 - stateMode;
+				if(stateMode == 1) {
+					mode = textMode;
+					inputFilelb.setVisible(false);
+					path.setVisible(false);
+					browse.setVisible(false);
+					sp_1.setVisible(true);
+				} else {
+					mode = fileMode;
+					inputFilelb.setVisible(true);
+					path.setVisible(true);
+					browse.setVisible(true);
+					sp_1.setVisible(false);
+				}
+				txtText.setText(mode);
+			}
+		});
+		changeBtn.setIcon(new ImageIcon(Hash.class.getResource("/image/swap.png")));
+		changeBtn.setMargin(new Insets(2, 0, 2, 0));
+		changeBtn.setFocusPainted(false);
+		changeBtn.setBorder(null);
+		changeBtn.setBackground(SystemColor.menu);
+		changeBtn.setBounds(566, 21, 52, 52);
+		panelMenu.add(changeBtn);
 	}
 }
 

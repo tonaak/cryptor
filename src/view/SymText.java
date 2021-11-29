@@ -143,6 +143,7 @@ public class SymText extends JFrame {
 	}
 
 	public SymText() {
+		setTitle("Crypton 1.0");
 		setUndecorated(true);
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

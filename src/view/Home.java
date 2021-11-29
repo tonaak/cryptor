@@ -49,6 +49,7 @@ public class Home extends JFrame {
 	}
 	
 	public Home() {
+		setTitle("Crypton 1.0");
 		setUndecorated(true);
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

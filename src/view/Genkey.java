@@ -10,6 +10,8 @@ import javax.swing.Timer;
 import javax.swing.border.LineBorder;
 import javax.swing.border.TitledBorder;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
 import java.awt.Color;
 import javax.swing.JButton;
 import javax.crypto.KeyGenerator;
@@ -24,6 +26,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.Security;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -50,7 +54,7 @@ public class Genkey extends JFrame {
 	private String encodedKey;
 	private JTextField successField;
 
-	public SecretKey createKey(String algorithm, int keysize) throws NoSuchAlgorithmException {
+	public SecretKey createKey(String algorithm, int keysize) throws NoSuchAlgorithmException, NoSuchProviderException {		
 		KeyGenerator keyGenerator = KeyGenerator.getInstance(algorithm);
 		keyGenerator.init(keysize);
 		key = keyGenerator.generateKey();
@@ -80,6 +84,7 @@ public class Genkey extends JFrame {
 	}
 
 	public static void main(String[] args) {
+		Security.addProvider(new BouncyCastleProvider());
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
@@ -185,7 +190,9 @@ public class Genkey extends JFrame {
 		panelMenu.setLayout(null);
 
 		JComboBox<Object> algoSelect = new JComboBox<Object>();
-		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"AES", "DES", "DESede", "Blowfish", "RC2", "RC4"}));
+		algoSelect.setMaximumRowCount(10);
+		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"AES", "DES", "DESede", "Blowfish", "RC2", "RC4", "RC5", "RC6",
+				"CAST5", "CAST6", "IDEA", "Serpent", "Skipjack", "Twofish"}));
 		algoSelect.setBackground(Color.WHITE);
 		algoSelect.setBorder(null);
 		algoSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
@@ -196,8 +203,16 @@ public class Genkey extends JFrame {
 		Integer[] desKey = new Integer[] {56};
 		Integer[] desedeKey = new Integer[] {112, 168};
 		Integer[] blowKey = new Integer[] {56, 64, 128, 168, 192, 256, 264, 296, 368, 432, 448};
-		Integer[] rc2Key = new Integer[] {64,128,256,512,1024};
-		Integer[] rc4Key = new Integer[] {64,128,256,512,1024};
+		Integer[] rc2Key = new Integer[] {128};
+		Integer[] rc4Key = new Integer[] {128,256};
+		Integer[] rc5Key = new Integer[] {128,256,512,1024};
+		Integer[] rc6Key = new Integer[] {128,256,512,1024};
+		Integer[] cast5Key = new Integer[] {64,128};
+		Integer[] cast6Key = new Integer[] {128,160,192,224,256};
+		Integer[] ideaKey = new Integer[] {128};
+		Integer[] serpentKey = new Integer[] {128,192,256};
+		Integer[] skipjackKey = new Integer[] {80};
+		Integer[] twofishKey = new Integer[] {128,192,256};
 
 		JLabel algo = new JLabel("Algorithms:");
 		algo.setForeground(new Color(0, 100, 0));
@@ -276,6 +291,22 @@ public class Genkey extends JFrame {
 					keySelect.setModel(new DefaultComboBoxModel<Integer>(rc2Key));
 				} else if(algoSelect.getSelectedItem().equals("RC4")) {
 					keySelect.setModel(new DefaultComboBoxModel<Integer>(rc4Key));
+				} else if(algoSelect.getSelectedItem().equals("RC5")) {
+					keySelect.setModel(new DefaultComboBoxModel<Integer>(rc5Key));
+				} else if(algoSelect.getSelectedItem().equals("RC6")) {
+					keySelect.setModel(new DefaultComboBoxModel<Integer>(rc6Key));
+				} else if(algoSelect.getSelectedItem().equals("CAST5")) {
+					keySelect.setModel(new DefaultComboBoxModel<Integer>(cast5Key));
+				} else if(algoSelect.getSelectedItem().equals("CAST6")) {
+					keySelect.setModel(new DefaultComboBoxModel<Integer>(cast6Key));
+				} else if(algoSelect.getSelectedItem().equals("IDEA")) {
+					keySelect.setModel(new DefaultComboBoxModel<Integer>(ideaKey));
+				} else if(algoSelect.getSelectedItem().equals("Serpent")) {
+					keySelect.setModel(new DefaultComboBoxModel<Integer>(serpentKey));
+				} else if(algoSelect.getSelectedItem().equals("Twofish")) {
+					keySelect.setModel(new DefaultComboBoxModel<Integer>(twofishKey));
+				} else if(algoSelect.getSelectedItem().equals("Skipjack")) {
+					keySelect.setModel(new DefaultComboBoxModel<Integer>(skipjackKey));
 				}
 			}
 		});
@@ -302,7 +333,11 @@ public class Genkey extends JFrame {
 					successField.setText("Please choose a destination for the key file!");
 				} else {
 					try {
-						createKey(algorithm, keysize);
+						try {
+							createKey(algorithm, keysize);
+						} catch (NoSuchProviderException e1) {
+							e1.printStackTrace();
+						}
 						encodedKey = convertKeyToBase64String(key);
 						saveKeyFile(algorithm, encodedKey, keyPath);
 

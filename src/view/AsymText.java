@@ -27,13 +27,15 @@ import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.awt.Insets;
 import java.awt.SystemColor;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 
 import javax.swing.JLabel;
 import java.awt.event.ActionListener;
@@ -58,20 +60,31 @@ public class AsymText extends JFrame {
 	private String encMode = "Encrypt";
 	private String decMode = "Decrypt";
 	private String mode = encMode;
-	
+
 	private static Base64.Encoder encoder = Base64.getEncoder();
 	private static Base64.Decoder decoder = Base64.getDecoder();
+
+	private static Clipboard getSystemClipboard()
+	{
+		Toolkit defaultToolkit = Toolkit.getDefaultToolkit();
+		return defaultToolkit.getSystemClipboard();
+	}
+	public static void copy(String text)
+	{
+		Clipboard clipboard = getSystemClipboard();
+		clipboard.setContents(new StringSelection(text), null);
+	}
 
 	public static String encrypt(String text, PublicKey publicKey) throws Exception{
 		Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 		cipher.init(Cipher.ENCRYPT_MODE, publicKey);
 		byte[] plainText = text.getBytes("UTF-8");
 		byte[] cipherText = cipher.doFinal(plainText);
-		
+
 		cipherText = encoder.encode(cipherText);
 		return new String(cipherText);
 	}
-	
+
 	public static String decrypt(String text, PrivateKey key) throws Exception{
 		byte[] cipherText = decoder.decode(text);
 		Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
@@ -80,7 +93,7 @@ public class AsymText extends JFrame {
 		String result = new String(plainText, "UTF-8");
 		return result;
 	}
-	
+
 	public static PrivateKey readPrivateKey(String path) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
 		byte[] bytes = Files.readAllBytes(Paths.get(path));
 		String privateString = new String(bytes, StandardCharsets.UTF_8);
@@ -89,7 +102,7 @@ public class AsymText extends JFrame {
 		KeyFactory kf = KeyFactory.getInstance("RSA");
 		return kf.generatePrivate(ks);
 	}
-	
+
 	public static PublicKey readPublicKey(String path) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
 		byte[] bytes = Files.readAllBytes(Paths.get(path));
 		String publicString = new String(bytes, StandardCharsets.UTF_8);
@@ -374,13 +387,13 @@ public class AsymText extends JFrame {
 
 		algoSelect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				
+
 			}
 		});
 
 		modeSelect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				
+
 			}
 		});
 
@@ -394,21 +407,29 @@ public class AsymText extends JFrame {
 				} else {
 					if (mode == encMode) {
 						String text = plainInput.getText();
-						try {
-							PublicKey publicKey = readPublicKey(keyFilePath);
-							String cipherText = encrypt(text, publicKey);
-							cipherInput.setText(cipherText);
-						} catch (Exception e1) {
-							JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the encrypt mode");
+						if(text == null || text.equalsIgnoreCase("")) {
+							JOptionPane.showMessageDialog(contentPane, "Nothing to encrypt");
+						} else {
+							try {
+								PublicKey publicKey = readPublicKey(keyFilePath);
+								String cipherText = encrypt(text, publicKey);
+								cipherInput.setText(cipherText);
+							} catch (Exception e1) {
+								JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the encrypt mode");
+							}
 						}
 					} else {
 						String text = cipherInput.getText();
-						try {
-							PrivateKey privateKey = readPrivateKey(keyFilePath);
-							String plainText = decrypt(text, privateKey);
-							plainInput.setText(plainText);
-						} catch (Exception e1) {
-							JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the decrypt mode");
+						if(text == null || text.equalsIgnoreCase("")) {
+							JOptionPane.showMessageDialog(contentPane, "Nothing to decrypt");
+						} else {
+							try {
+								PrivateKey privateKey = readPrivateKey(keyFilePath);
+								String plainText = decrypt(text, privateKey);
+								plainInput.setText(plainText);
+							} catch (Exception e1) {
+								JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the decrypt mode");
+							}
 						}
 					}
 				}
@@ -431,5 +452,33 @@ public class AsymText extends JFrame {
 		startBtn.setBackground(Color.WHITE);
 		startBtn.setBounds(364, 216, 73, 52);
 		panelMenu.add(startBtn);
+
+		JButton copyPlain = new JButton("Copy");
+		copyPlain.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String plain = plainInput.getText();
+				if(plain == null || plain == "")
+					return;
+				else 
+					copy(plain);
+			}
+		});
+		copyPlain.setFocusPainted(false);
+		copyPlain.setBounds(160, 397, 73, 23);
+		panelMenu.add(copyPlain);
+
+		JButton copyCipher = new JButton("Copy");
+		copyCipher.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String cipher = cipherInput.getText();
+				if(cipher == null || cipher == "")
+					return;
+				else 
+					copy(cipher);
+			}
+		});
+		copyCipher.setFocusPainted(false);
+		copyCipher.setBounds(580, 397, 73, 23);
+		panelMenu.add(copyCipher);
 	}
 }

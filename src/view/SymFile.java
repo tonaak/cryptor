@@ -23,8 +23,10 @@ import java.awt.event.MouseMotionAdapter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.security.Security;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Base64;
 import java.awt.Insets;
 import java.awt.SystemColor;
@@ -34,6 +36,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
@@ -71,7 +74,11 @@ public class SymFile extends JFrame {
 			} else if(mode.equalsIgnoreCase("")) {
 				cipher.init(Cipher.ENCRYPT_MODE, key);
 			} else {
-				if(algorithm.equalsIgnoreCase("AES")) {
+				if(algorithm.equalsIgnoreCase("AES")||
+						algorithm.equalsIgnoreCase("RC6") ||
+						algorithm.equalsIgnoreCase("CAST6") ||
+						algorithm.equalsIgnoreCase("Serpent") ||
+						algorithm.equalsIgnoreCase("Twofish")) {
 					cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[16]));
 				} else {
 					cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[8]));
@@ -115,7 +122,11 @@ public class SymFile extends JFrame {
 			} else if(mode.equalsIgnoreCase("")) {
 				cipher.init(Cipher.DECRYPT_MODE, key);
 			} else {
-				if(algorithm.equalsIgnoreCase("AES")) {
+				if(algorithm.equalsIgnoreCase("AES")||
+						algorithm.equalsIgnoreCase("RC6") ||
+						algorithm.equalsIgnoreCase("CAST6") ||
+						algorithm.equalsIgnoreCase("Serpent") ||
+						algorithm.equalsIgnoreCase("Twofish")) {
 					cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[16]));
 				} else {
 					cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[8]));
@@ -148,6 +159,7 @@ public class SymFile extends JFrame {
 	}
 
 	public static void main(String[] args) throws Exception {
+		Security.addProvider(new BouncyCastleProvider());
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
@@ -252,7 +264,8 @@ public class SymFile extends JFrame {
 		panelMenu.setLayout(null);
 
 		JComboBox<Object> algoSelect = new JComboBox<Object>();
-		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"AES", "DES", "DESede", "Blowfish", "RC2", "RC4"}));
+		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"AES", "DES", "DESede", "Blowfish", "RC2", "RC4", "RC5", "RC6",
+				"CAST5", "CAST6", "IDEA", "Serpent", "Skipjack", "Twofish"}));
 		algoSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
 		algoSelect.setBorder(null);
 		algoSelect.setBackground(Color.WHITE);
@@ -360,6 +373,7 @@ public class SymFile extends JFrame {
 		String[] noPadding = new String[] {"NoPadding"};
 		String[] emptyPadding = new String[] {""};
 		String[] modeList = new String[] {"NONE", "ECB", "CBC", "PCBC", "CTR", "CFB", "CFB8", "CFB64", "OFB", "OFB8", "OFB64"};
+		String[] bouncymodeList = new String[] {"NONE", "ECB", "CBC", "CTR", "CFB", "CFB8", "CFB64", "OFB", "OFB8", "OFB64"};
 		String[] paddingList = new String[] {"PKCS5Padding", "ISO10126Padding"};
 
 		JComboBox<Object> modeSelect = new JComboBox<Object>();
@@ -395,9 +409,17 @@ public class SymFile extends JFrame {
 
 		algoSelect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
+				String[] values = {"RC5","RC6","CAST5","CAST6","Serpent","Twofish","Skipjack","IDEA"};
+				boolean contains = Arrays.stream(values).anyMatch(algoSelect.getSelectedItem()::equals);
+
 				if(algoSelect.getSelectedItem().equals("RC4")) {
 					modeSelect.setModel(new DefaultComboBoxModel<Object>(emptyMode));
 					modeSelect.setEnabled(false);
+					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
+					paddingSelect.setEnabled(false);
+				} else if(contains){ 
+					modeSelect.setModel(new DefaultComboBoxModel<Object>(bouncymodeList));
+					modeSelect.setEnabled(true);
 					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
 					paddingSelect.setEnabled(false);
 				} else {

@@ -22,9 +22,14 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.io.File;
+import java.security.Security;
+import java.util.Arrays;
 import java.util.Base64;
 import java.awt.Insets;
 import java.awt.SystemColor;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 
 import javax.swing.JLabel;
 import java.awt.event.ActionListener;
@@ -33,6 +38,7 @@ import javax.swing.JTextArea;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.border.TitledBorder;
 import org.apache.commons.io.FileUtils;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.awt.Component;
 import javax.swing.JComboBox;
@@ -52,6 +58,17 @@ public class SymText extends JFrame {
 	private String decMode = "Decrypt";
 	private String mode = encMode;
 
+	private static Clipboard getSystemClipboard()
+    {
+        Toolkit defaultToolkit = Toolkit.getDefaultToolkit();
+        return defaultToolkit.getSystemClipboard();
+    }
+	public static void copy(String text)
+    {
+        Clipboard clipboard = getSystemClipboard();
+        clipboard.setContents(new StringSelection(text), null);
+    }
+	
 	public static String encrypt(String text, String algorithm, String keyFile, String mode, String padding) throws Exception {
 		byte[] fileContent = FileUtils.readFileToByteArray(new File(keyFile));
 		byte[] originalBytes = Base64.getDecoder().decode(fileContent);
@@ -64,7 +81,11 @@ public class SymText extends JFrame {
 		} else if(mode.equalsIgnoreCase("")) {
 			cipher.init(Cipher.ENCRYPT_MODE, key);
 		} else {
-			if(algorithm.equalsIgnoreCase("AES")) {
+			if(algorithm.equalsIgnoreCase("AES") ||
+					algorithm.equalsIgnoreCase("RC6") ||
+					algorithm.equalsIgnoreCase("CAST6") ||
+					algorithm.equalsIgnoreCase("Serpent") ||
+					algorithm.equalsIgnoreCase("Twofish")) {
 				cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[16]));
 			} else {
 				cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[8]));
@@ -84,15 +105,19 @@ public class SymText extends JFrame {
 		SecretKey key = new SecretKeySpec(originalBytes, 0, originalBytes.length, algorithm);
 
 		byte[] textByte = Base64.getDecoder().decode(text.getBytes());
-
-		Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
 		
+		Cipher cipher = Cipher.getInstance(algorithm + mode + padding);
+
 		if(mode.equalsIgnoreCase("/ECB") || algorithm.equalsIgnoreCase("RC4")) {
 			cipher.init(Cipher.DECRYPT_MODE, key);
 		} else if(mode.equalsIgnoreCase("")) {
 			cipher.init(Cipher.DECRYPT_MODE, key);
 		} else {
-			if(algorithm.equalsIgnoreCase("AES")) {
+			if(algorithm.equalsIgnoreCase("AES")||
+					algorithm.equalsIgnoreCase("RC6") ||
+					algorithm.equalsIgnoreCase("CAST6") ||
+					algorithm.equalsIgnoreCase("Serpent") ||
+					algorithm.equalsIgnoreCase("Twofish")) {
 				cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[16]));
 			} else {
 				cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(new byte[8]));
@@ -104,6 +129,7 @@ public class SymText extends JFrame {
 	}
 
 	public static void main(String[] args) throws Exception {
+		Security.addProvider(new BouncyCastleProvider());
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
@@ -234,7 +260,8 @@ public class SymText extends JFrame {
 		sp_1.setViewportView(cipherInput);
 
 		JComboBox<Object> algoSelect = new JComboBox<Object>();
-		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"AES", "DES", "DESede", "Blowfish", "RC2", "RC4"}));
+		algoSelect.setModel(new DefaultComboBoxModel<Object>(new String[] {"AES", "DES", "DESede", "Blowfish", "RC2", "RC4", "RC5", "RC6",
+				"CAST5", "CAST6", "IDEA", "Serpent", "Skipjack", "Twofish"}));
 		algoSelect.setFont(new Font("Tahoma", Font.PLAIN, 15));
 		algoSelect.setBorder(null);
 		algoSelect.setBackground(Color.WHITE);
@@ -346,6 +373,7 @@ public class SymText extends JFrame {
 		String[] emptyPadding = new String[] {""};
 		String[] modeList = new String[] {"NONE", "ECB", "CBC", "PCBC", "CTR", "CFB", "CFB8", "CFB64", "OFB", "OFB8", "OFB64"};
 		String[] paddingList = new String[] {"PKCS5Padding", "ISO10126Padding"};
+		String[] bouncymodeList = new String[] {"NONE", "ECB", "CBC", "CTR", "CFB", "CFB8", "CFB64", "OFB", "OFB8", "OFB64"};
 
 		JComboBox<Object> modeSelect = new JComboBox<Object>();
 		modeSelect.setModel(new DefaultComboBoxModel<Object>(modeList));
@@ -380,9 +408,17 @@ public class SymText extends JFrame {
 
 		algoSelect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
+				String[] values = {"RC5","RC6","CAST5","CAST6","Serpent","Twofish","Skipjack","IDEA"};
+				boolean contains = Arrays.stream(values).anyMatch(algoSelect.getSelectedItem()::equals);
+
 				if(algoSelect.getSelectedItem().equals("RC4")) {
 					modeSelect.setModel(new DefaultComboBoxModel<Object>(emptyMode));
 					modeSelect.setEnabled(false);
+					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
+					paddingSelect.setEnabled(false);
+				} else if(contains){ 
+					modeSelect.setModel(new DefaultComboBoxModel<Object>(bouncymodeList));
+					modeSelect.setEnabled(true);
 					paddingSelect.setModel(new DefaultComboBoxModel<Object>(emptyPadding));
 					paddingSelect.setEnabled(false);
 				} else {
@@ -427,20 +463,28 @@ public class SymText extends JFrame {
 				} else {
 					if (mode == encMode) {
 						String text = plainInput.getText();
-						try {
-							String cipherText = encrypt(text, algorithm, keyFilePath, modeCrypt, padding);
-							cipherInput.setText(cipherText);
-						} catch (Exception e1) {
-							e1.printStackTrace();
-							JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the encrypt mode");
+						if(text == null || text.equalsIgnoreCase("")) {
+							JOptionPane.showMessageDialog(contentPane, "Nothing to encrypt");
+						} else {
+							try {
+								String cipherText = encrypt(text, algorithm, keyFilePath, modeCrypt, padding);
+								cipherInput.setText(cipherText);
+							} catch (Exception e1) {
+								e1.printStackTrace();
+								JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the encrypt mode");
+							}
 						}
 					} else {
 						String text = cipherInput.getText();
-						try {
-							String plainText = decrypt(text, algorithm, keyFilePath, modeCrypt, padding);
-							plainInput.setText(plainText);
-						} catch (Exception e1) {
-							JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the decrypt mode");
+						if(text == null || text.equalsIgnoreCase("")) {
+							JOptionPane.showMessageDialog(contentPane, "Nothing to decrypt");
+						} else {
+							try {
+								String plainText = decrypt(text, algorithm, keyFilePath, modeCrypt, padding);
+								plainInput.setText(plainText);
+							} catch (Exception e1) {
+								JOptionPane.showMessageDialog(contentPane, "Process failed. Check your key file, your input and the decrypt mode");
+							}
 						}
 					}
 				}
@@ -463,5 +507,33 @@ public class SymText extends JFrame {
 		startBtn.setBackground(Color.WHITE);
 		startBtn.setBounds(364, 216, 73, 52);
 		panelMenu.add(startBtn);
+		
+		JButton copyPlain = new JButton("Copy");
+		copyPlain.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String plain = plainInput.getText();
+				if(plain == null || plain == "")
+					return;
+				else 
+					copy(plain);
+			}
+		});
+		copyPlain.setFocusPainted(false);
+		copyPlain.setBounds(160, 397, 73, 23);
+		panelMenu.add(copyPlain);
+		
+		JButton copyCipher = new JButton("Copy");
+		copyCipher.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String cipher = cipherInput.getText();
+				if(cipher == null || cipher == "")
+					return;
+				else 
+					copy(cipher);
+			}
+		});
+		copyCipher.setFocusPainted(false);
+		copyCipher.setBounds(579, 397, 73, 23);
+		panelMenu.add(copyCipher);
 	}
 }

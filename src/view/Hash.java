@@ -57,7 +57,7 @@ public class Hash extends JFrame {
 	private String mode = textMode;
 
 	public String checksum(String input, String algorithm) throws NoSuchAlgorithmException {
-		MessageDigest md = MessageDigest.getInstance(algorithm);
+		MessageDigest md = MessageDigest.getInstance(algorithm, new BouncyCastleProvider());
 		byte[] messageDigest = md.digest(input.getBytes());
 		BigInteger number = new BigInteger(1, messageDigest);
 
@@ -66,7 +66,7 @@ public class Hash extends JFrame {
 
 	public String hash(String file, String algorithm) throws NoSuchAlgorithmException, IOException {
 		byte[] b = Files.readAllBytes(Paths.get(file));
-		byte[] hash = MessageDigest.getInstance(algorithm).digest(b);
+		byte[] hash = MessageDigest.getInstance(algorithm, new BouncyCastleProvider()).digest(b);
 		
 		return DatatypeConverter.printHexBinary(hash);
 	}
@@ -273,7 +273,7 @@ public class Hash extends JFrame {
 				
 				if(stateMode == 1) {
 					String input = textInput.getText();
-					if(input == null || input == "")
+					if(input == null || input.equalsIgnoreCase(""))
 						JOptionPane.showMessageDialog(contentPane, "Nothing to hash");
 					else
 						try {
@@ -284,13 +284,14 @@ public class Hash extends JFrame {
 						}
 				} else {
 					String file = path.getText();
-					if(file == "" || file == null || file.equalsIgnoreCase("No file selected"))
+					if(file.equalsIgnoreCase("") || file == null || file.equalsIgnoreCase("No file selected"))
 						JOptionPane.showMessageDialog(contentPane, "Nothing to hash");
 					else
 						try {
 							result.setText(hash(file, algorithm));
 						} catch (NoSuchAlgorithmException | IOException e1) {
 							JOptionPane.showMessageDialog(contentPane, "Process failed. Please try again later");
+							e1.printStackTrace();
 						}
 				}
 			}

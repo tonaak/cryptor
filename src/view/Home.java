@@ -6,6 +6,8 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.LineBorder;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
 import java.awt.Color;
 import javax.swing.JButton;
 import java.awt.SystemColor;
@@ -18,8 +20,11 @@ import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
+import java.security.Security;
 import java.awt.Insets;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 
@@ -30,6 +35,7 @@ public class Home extends JFrame {
 	private int xx, yy;
 
 	public static void main(String[] args) {
+		Security.addProvider(new BouncyCastleProvider());
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
@@ -178,28 +184,43 @@ public class Home extends JFrame {
 		btnAsymmetric.setBounds(271, 187, 130, 130);
 		contentPane.add(btnAsymmetric);
 		
-		JButton btnPbe = new JButton("HASH");
-		btnPbe.setVerticalTextPosition(SwingConstants.BOTTOM);
-		btnPbe.setHorizontalTextPosition(SwingConstants.CENTER);
-		btnPbe.setIcon(new ImageIcon(Home.class.getResource("/image/Key-Hash-64.png")));
-		btnPbe.addMouseListener(new MouseAdapter() {
+		JButton btnHash = new JButton("HASH");
+		btnHash.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				Hash sym = new Hash();
+				sym.setVisible(true);
+				
+				// delay dispose
+				Timer timer = new Timer( 100, new ActionListener(){
+				  public void actionPerformed( ActionEvent e ){
+				      dispose();
+				  }
+				});
+				timer.setRepeats(false);
+				timer.start();
+			}
+		});
+		btnHash.setVerticalTextPosition(SwingConstants.BOTTOM);
+		btnHash.setHorizontalTextPosition(SwingConstants.CENTER);
+		btnHash.setIcon(new ImageIcon(Home.class.getResource("/image/Key-Hash-64.png")));
+		btnHash.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseEntered(MouseEvent e) {
-				btnPbe.setBackground(Color.LIGHT_GRAY);
+				btnHash.setBackground(Color.LIGHT_GRAY);
 			}
 			@Override
 			public void mouseExited(MouseEvent e) {
-				btnPbe.setBackground(SystemColor.menu);
+				btnHash.setBackground(SystemColor.menu);
 			}
 		});
-		btnPbe.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		btnPbe.setForeground(new Color(0, 128, 0));
-		btnPbe.setFont(new Font("Tahoma", Font.BOLD, 11));
-		btnPbe.setFocusPainted(false);
-		btnPbe.setBorder(new LineBorder(new Color(227, 227, 227), 0, true));
-		btnPbe.setBackground(SystemColor.menu);
-		btnPbe.setBounds(425, 187, 130, 130);
-		contentPane.add(btnPbe);
+		btnHash.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		btnHash.setForeground(new Color(0, 128, 0));
+		btnHash.setFont(new Font("Tahoma", Font.BOLD, 11));
+		btnHash.setFocusPainted(false);
+		btnHash.setBorder(new LineBorder(new Color(227, 227, 227), 0, true));
+		btnHash.setBackground(SystemColor.menu);
+		btnHash.setBounds(425, 187, 130, 130);
+		contentPane.add(btnHash);
 		
 		JButton btnKeygen = new JButton("GENERATE KEY");
 		btnKeygen.addActionListener(new ActionListener() {
@@ -276,6 +297,11 @@ public class Home extends JFrame {
 		contentPane.add(btnKeypair);
 		
 		JButton btnAbout = new JButton("ABOUT");
+		btnAbout.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				JOptionPane.showMessageDialog(contentPane, "18130246 - Nguyen An Toan", "About", JOptionPane.INFORMATION_MESSAGE);
+			}
+		});
 		btnAbout.setIcon(new ImageIcon(Home.class.getResource("/image/about.png")));
 		btnAbout.addMouseListener(new MouseAdapter() {
 			@Override

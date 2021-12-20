@@ -163,7 +163,7 @@ public class GenkeyPair extends JFrame {
 				Home home = new Home();
 				home.setVisible(true);
 
-				Timer timer = new Timer( 60000, new ActionListener(){
+				Timer timer = new Timer( 100, new ActionListener(){
 					public void actionPerformed( ActionEvent e ){
 						dispose();
 					}

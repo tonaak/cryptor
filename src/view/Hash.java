@@ -9,8 +9,6 @@ import javax.swing.JTextArea;
 import javax.swing.Timer;
 import javax.swing.border.LineBorder;
 import javax.swing.border.TitledBorder;
-import javax.xml.bind.DatatypeConverter;
-
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.awt.Color;
@@ -67,8 +65,12 @@ public class Hash extends JFrame {
 	public String hash(String file, String algorithm) throws NoSuchAlgorithmException, IOException {
 		byte[] b = Files.readAllBytes(Paths.get(file));
 		byte[] hash = MessageDigest.getInstance(algorithm, new BouncyCastleProvider()).digest(b);
-		
-		return DatatypeConverter.printHexBinary(hash);
+		StringBuilder sb = new StringBuilder();
+		for(int i=0; i< hash.length ;i++)
+		{
+			sb.append(Integer.toString((hash[i] & 0xff) + 0x100, 16).substring(1));
+		}
+		return sb.toString();
 	}
 
 	public static void main(String[] args) {
@@ -86,7 +88,7 @@ public class Hash extends JFrame {
 	}
 
 	public Hash() {
-		setTitle("Crypton 1.0");
+		setTitle("Crypt 1.0");
 		setUndecorated(true);
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

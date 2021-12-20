@@ -174,7 +174,7 @@ public class AsymFile extends JFrame {
 	}
 
 	public AsymFile() {
-		setTitle("Crypton 1.0");
+		setTitle("Crypt 1.0");
 		setUndecorated(true);
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -526,9 +526,9 @@ public class AsymFile extends JFrame {
 								PrivateKey pvt = readPrivateKey(keyFilePath);
 								int pvtLength = pvt.getEncoded().length;
 								int keyBuffer = 0;
-								if(pvtLength == 634) keyBuffer = 128;
-								if(pvtLength == 1219) keyBuffer = 256;
-								if(pvtLength == 2376) keyBuffer = 512;
+								if(pvtLength < 1024) keyBuffer = 128;
+								if(pvtLength < 2048 && pvtLength > 1024) keyBuffer = 256;
+								if(pvtLength < 4096 && pvtLength > 2048) keyBuffer = 512;
 								
 								doDecryptRSAWithAES(pvt, sourceFile, destFile, keyBuffer);
 								

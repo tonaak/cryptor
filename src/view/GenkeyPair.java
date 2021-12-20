@@ -15,9 +15,8 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -46,23 +45,43 @@ public class GenkeyPair extends JFrame {
 	private static Base64.Encoder encoder = Base64.getEncoder();
 
 	public static void doGenkey(String path, int keysize) throws IOException, NoSuchAlgorithmException {
+		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+		LocalDateTime now = LocalDateTime.now();
+		path = path + "/key";
+
 		File des = new File(path);
 		if(!des.exists()) {
 			des.mkdirs();
 		}
-		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
-		LocalDateTime now = LocalDateTime.now();
 
 		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
 		kpg.initialize(keysize);
 		KeyPair kp = kpg.generateKeyPair();
-		try (FileOutputStream out = new FileOutputStream(path + "/private_" + dtf.format(now) + ".key")) {
-			out.write(encoder.encodeToString(kp.getPrivate().getEncoded()).getBytes(StandardCharsets.UTF_8));
+
+		try {
+			File out = new File(path + "/private_" + dtf.format(now) + ".key");
+			FileWriter writer = new FileWriter(out);
+			String key = encoder.encodeToString(kp.getPrivate().getEncoded());
+
+			writer.write(key);
+			writer.flush();
+			writer.close();
+		} catch (Exception e){
+			e.printStackTrace();
 		}
 
-		try (FileOutputStream out = new FileOutputStream(path + "/public_" + dtf.format(now) + ".pub")) {
-			out.write(encoder.encodeToString(kp.getPublic().getEncoded()).getBytes(StandardCharsets.UTF_8));
+		try {
+			File out = new File(path + "/public_" + dtf.format(now) + ".pub");
+			FileWriter writer = new FileWriter(out);
+			String key = encoder.encodeToString(kp.getPublic().getEncoded());
+
+			writer.write(key);
+			writer.flush();
+			writer.close();
+		} catch (Exception e){
+			e.printStackTrace();
 		}
+
 	}
 
 	public static void main(String[] args) {
@@ -79,7 +98,7 @@ public class GenkeyPair extends JFrame {
 	}
 
 	public GenkeyPair() {
-		setTitle("Crypton 1.0");
+		setTitle("Crypt 1.0");
 		setUndecorated(true);
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -144,7 +163,7 @@ public class GenkeyPair extends JFrame {
 				Home home = new Home();
 				home.setVisible(true);
 
-				Timer timer = new Timer( 100, new ActionListener(){
+				Timer timer = new Timer( 60000, new ActionListener(){
 					public void actionPerformed( ActionEvent e ){
 						dispose();
 					}
